@@ -1,0 +1,25 @@
+{
+  "graph": {
+    "name": "ops_rs_sliding_attention_output",
+    "language": "rust",
+    "nodes": [
+      {"id": "ops_rs::sliding_attention_output", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, x, post_attn_rms_weight, o_weight, o_weight_scale, residual_hbm)"},
+      {"id": "dmtensor::to_dm", "kind": "method", "file": "src/ops.rs", "note": "local API call"},
+      {"id": "core::reshape", "kind": "unsafe_fn", "file": "src/ops.rs", "note": "unsafe { x.reshape() }"},
+      {"id": "layout::broadcast_sliding_heads", "kind": "function", "file": "src/device/layout.rs", "note": "broadcast hidden-by-head layout"},
+      {"id": "sliding::projection::project_output", "kind": "function", "file": "src/device/sliding/projection.rs", "note": "projects Qs->H"},
+      {"id": "shared::rmsnorm::normalize", "kind": "function", "file": "src/device/shared/rmsnorm.rs", "note": "post-attn RMS norm"},
+      {"id": "shared::residual::add", "kind": "function", "file": "src/device/shared/residual.rs", "note": "add residual branch"},
+      {"id": "dmview::to_hbm_view", "kind": "method", "file": "src/ops.rs", "note": "writeback to residual_hbm"}
+    ],
+    "edges": [
+      {"from": "ops_rs::sliding_attention_output", "to": "dmtensor::to_dm", "type": "calls"},
+      {"from": "ops_rs::sliding_attention_output", "to": "core::reshape", "type": "calls"},
+      {"from": "ops_rs::sliding_attention_output", "to": "layout::broadcast_sliding_heads", "type": "calls"},
+      {"from": "ops_rs::sliding_attention_output", "to": "sliding::projection::project_output", "type": "calls"},
+      {"from": "ops_rs::sliding_attention_output", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "ops_rs::sliding_attention_output", "to": "shared::residual::add", "type": "calls"},
+      {"from": "ops_rs::sliding_attention_output", "to": "dmview::to_hbm_view", "type": "writes-back"}
+    ]
+  }
+}

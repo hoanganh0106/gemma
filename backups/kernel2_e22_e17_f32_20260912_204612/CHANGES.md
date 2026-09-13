@@ -1,0 +1,1 @@
+E22: E17 plus F32 output partial accumulation. Single combined candidate: E17 FP8 direct stream, early reduction, weight-first DMA preserved; output_partial cast changed BF16 -> F32 before transpose/commit. Requires compiler and correctness validation.

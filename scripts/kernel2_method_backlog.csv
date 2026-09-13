@@ -1,0 +1,20 @@
+E1-CHUNK-2048|ready (fixed p1 duplicate)|kernel2_e1_chunk2048_fixed_20260912_1600
+E2-FP8-STREAM-DECODE|implemented as current baseline path|kernel2_e2_fp8_stream_20260912_1415
+E2-SCALE-RMS-FUSION|pending not implemented|
+E3-F32-PARTIAL-ACCUM|backup ready for immediate run|kernel2_e3_f32_partial_20260912_1500
+E4-TILE-SWEEP|backup ready for immediate run|kernel2_e4_tile4096_20260912_1500
+E5-EARLY-PARTIAL-ADD|backup kernel2_current_20260912_131556|kernel2_current_20260912_131556
+E6-CHUNK-768|backup kernel2_e6_tile768_20260912_1351|kernel2_e6_tile768_20260912_1351
+E7-SWAP-DMA-MAIN|backup kernel2_e7_swap_dma_main_20260912_1352|kernel2_e7_swap_dma_main_20260912_1352
+E8-CONTRACT-ORDER-ALT|backup kernel2_e8_alt_contract_order_20260912_1400|kernel2_e8_alt_contract_order_20260912_1400
+E9-LANEMODE-SEQUENTIAL|backup kernel2_e9_lane_seq_20260912_1345|kernel2_e9_lane_seq_20260912_1345
+E10-SPLIT-3015|backup kernel2_e10_split3015_20260912_1400|kernel2_e10_split3015_20260912_1400
+E11-MUL1-SCALE|backup kernel2_e11_mul1_scale_20260912_1404|kernel2_e11_mul1_scale_20260912_1404
+E12-STREAMING-ADD|backup kernel2_e12_streaming_add_20260912_1354|kernel2_e12_streaming_add_20260912_1354
+E13-CHUNK-1536|backup kernel2_e13_chunk1536_20260912_1356|kernel2_e13_chunk1536_20260912_1356
+E14-LANE-4|backup kernel2_e14_lane4_20260912_1358|kernel2_e14_lane4_20260912_1358
+E15-ROLLBACK|backup kernel2_e15_rollback_baseline_20260912_1402|kernel2_e15_rollback_baseline_20260912_1402
+E16-E2-EARLY-COMBINATION|E2 direct FP8 stream + early p0+p1 partial add|kernel2_e2_plus_early_20260912_201356
+E18-REVERSE-REDUCTION|compute p2+p3 before p0+p1|kernel2_e18_reverse_reduction_20260912_202528
+E19-CONTRACT-PACKET-2|contract_packet m![2]|kernel2_e19_packet2_20260912_203132
+E20-LANE-SEQUENTIAL-NEW|sliding output LaneMode::Sequential|kernel2_e20_lane_sequential_20260912_203549

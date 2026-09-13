@@ -1,0 +1,1 @@
+E17: weight DMA before x TRF preparation. Parent: current E16. Only block order changed inside output_partial. Tile 1024, offsets 0/1024/2048/3072, FP8 stream, reduction and BF16 rounding preserved. Not yet compiled or measured. Parent and candidate snapshots in D:\Project\furiosa-opt-gemma4-12B-main\backups\kernel2_e17_weight_dma_first_20260912_202129.
