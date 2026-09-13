@@ -179,14 +179,13 @@ pub(crate) fn project_output(
     weight: &HbmTensor<f8e4m3, Chip, m![H, Qs]>,
     weight_scale: &HbmTensor<bf16, Chip, m![H]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
-    const CHUNK: usize = 768;
+    const CHUNK: usize = 1024;
 
     let p0 = output_partial(ctx, x, weight, 0);
     let p1 = output_partial(ctx, x, weight, CHUNK);
+    let p01 = add_partials(ctx, &p0, &p1);
     let p2 = output_partial(ctx, x, weight, 2 * CHUNK);
     let p3 = output_partial(ctx, x, weight, 3 * CHUNK);
-
-    let p01 = add_partials(ctx, &p0, &p1);
     let p23 = add_partials(ctx, &p2, &p3);
     let result = add_partials(ctx, &p01, &p23);
     let result = apply_output_channel_scale(ctx, &result, weight_scale);
@@ -202,23 +201,23 @@ fn output_partial(
     offset: usize,
 ) -> DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]> {
     let x: DmTensorView<'_, bf16, Chip, Cluster, HiddenRows, m![Qs]> = unsafe { x.view().reshape() };
-    let x = x.tile::<m![Qs], 768, m![Qs = 768 # 4096]>(offset);
-    let x_trf: TrfTensor<bf16, Chip, Cluster, HiddenRows, m![1], m![Qs = 768]> = ctx
+    let x = x.tile::<m![Qs], 1024, m![Qs = 1024 # 4096]>(offset);
+    let weight_f8: DmTensor<f8e4m3, Chip, Cluster, HiddenRows, m![H % 120, Qs = 1024]> = weight
+        .view()
+        .tile::<m![Qs], 1024, m![H, Qs = 1024 # 4096]>(offset)
+        .to_dm(&mut ctx.tdma);
+    let x_trf: TrfTensor<bf16, Chip, Cluster, HiddenRows, m![1], m![Qs = 1024]> = ctx
         .sub
         .begin(x)
-        .fetch::<m![1], m![Qs = 768]>()
-        .collect::<m![Qs = 768 / 16], m![Qs = 768 % 16]>()
+        .fetch::<m![1], m![Qs = 1024]>()
+        .collect::<m![Qs = 1024 / 16], m![Qs = 1024 % 16]>()
         .to_trf();
-    let weight_f8: DmTensor<f8e4m3, Chip, Cluster, HiddenRows, m![H % 120, Qs = 768]> = weight
-        .view()
-        .tile::<m![Qs], 768, m![H, Qs = 768 # 4096]>(offset)
-        .to_dm(&mut ctx.tdma);
     ctx.main
         .begin(weight_f8.view())
-        .fetch::<m![H % 120, Qs = 768 / 32], m![Qs = 768 % 32]>()
+        .fetch::<m![H % 120, Qs = 1024 / 32], m![Qs = 1024 % 32]>()
         .fetch_table_lookup::<bf16>()
-        .collect::<m![H % 120, Qs = 768 / 16], m![Qs = 768 % 16]>()
-        .contract_outer::<m![H % 120, Qs = 768 / 32], m![Qs = 768 % 32], _, _, _>(&x_trf)
+        .collect::<m![H % 120, Qs = 1024 / 16], m![Qs = 1024 % 16]>()
+        .contract_outer::<m![H % 120, Qs = 1024 / 32], m![Qs = 1024 % 32], _, _, _>(&x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![H % 120]>()
         .contract_lane::<m![H % 120], m![1 # 8]>(LaneMode::Interleaved)
@@ -283,3 +282,5 @@ fn apply_output_channel_scale(
         .commit_trim::<m![H % 8]>()
         .commit()
 }
+
+
