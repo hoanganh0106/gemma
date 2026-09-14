@@ -222,9 +222,14 @@ pub fn decoder_feedforward(
     layer_scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
 ) {
     let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &residual, pre_ff_rms_weight);
-
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![H]> = x.to_dm(&mut ctx.tdma);
+    // EXP-010A:
+    // Pre-FF RMSNorm writes directly into the Replicated layout.
+    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![H]> =
+        shared::rmsnorm::normalize_replicated(
+            ctx,
+            &residual,
+            pre_ff_rms_weight,
+        );
     let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::mlp::feedforward(
         ctx,
         x,
