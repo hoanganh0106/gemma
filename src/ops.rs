@@ -138,16 +138,16 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> = x.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![Qs]> = unsafe { x.reshape() };
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]> = layout::broadcast_sliding_heads(ctx, &x);
+    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![Ns, Gs, Ds]> = x.to_dm(&mut ctx.tdma);
+    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]> = unsafe { x.reshape() };
 
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> =
-        sliding::projection::project_output(ctx, &x, o_weight, o_weight_scale);
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::rmsnorm::normalize(ctx, &x, post_attn_rms_weight);
-
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::residual::add(ctx, &x, &residual);
+    let x = sliding::projection::project_output_distributed(ctx, &x, o_weight, o_weight_scale);
+    let residual = shared::rmsnorm::normalize_and_add_residual_distributed(
+        ctx,
+        &x,
+        post_attn_rms_weight,
+        residual_hbm,
+    );
     residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
 

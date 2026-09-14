@@ -179,20 +179,56 @@ pub(crate) fn project_output(
     weight: &HbmTensor<f8e4m3, Chip, m![H, Qs]>,
     weight_scale: &HbmTensor<bf16, Chip, m![H]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
-    const CHUNK: usize = 1024;
-
-    let p0 = output_partial(ctx, x, weight, 0);
-    let p1 = output_partial(ctx, x, weight, CHUNK);
-    let p01 = add_partials(ctx, &p0, &p1);
-    let p2 = output_partial(ctx, x, weight, 2 * CHUNK);
-    let p3 = output_partial(ctx, x, weight, 3 * CHUNK);
-    let p23 = add_partials(ctx, &p2, &p3);
-    let result = add_partials(ctx, &p01, &p23);
+    let result = output_split_k2(ctx, x, weight);
     let result = apply_output_channel_scale(ctx, &result, weight_scale);
     result.to_dm(&mut ctx.tdma)
 }
 
+pub(crate) fn project_output_distributed(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]>,
+    weight: &HbmTensor<f8e4m3, Chip, m![H, Qs]>,
+    weight_scale: &HbmTensor<bf16, Chip, m![H]>,
+) -> DmTensor<bf16, Chip, Cluster, m![H / 120, 1 # 8], m![H % 120]> {
+    let result = output_split_k2(ctx, x, weight);
+    apply_output_channel_scale(ctx, &result, weight_scale)
+}
+
 type HiddenRows = m![H / 120, 1 # 8];
+type HiddenRowsK2 = m![H / 120, 1 # 4, Qs / 2048];
+
+fn output_split_k2(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]>,
+    weight: &HbmTensor<f8e4m3, Chip, m![H, Qs]>,
+) -> DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]> {
+    let x: DmTensor<bf16, Chip, Cluster, HiddenRowsK2, m![Qs % 2048]> = x.to_dm(&mut ctx.tdma);
+    let weight_f8: DmTensor<f8e4m3, Chip, Cluster, HiddenRowsK2, m![H % 120, Qs % 2048]> =
+        weight.to_dm(&mut ctx.tdma);
+    let x_trf: TrfTensor<bf16, Chip, Cluster, HiddenRowsK2, m![1], m![Qs % 2048]> = ctx
+        .sub
+        .begin(x.view())
+        .fetch::<m![Qs / 16 % 128], m![Qs % 16]>()
+        .collect::<m![Qs / 16 % 128], m![Qs % 16]>()
+        .to_trf();
+
+    ctx.main
+        .begin(weight_f8.view())
+        .fetch::<m![H % 120, Qs / 32 % 64], m![Qs % 32]>()
+        .fetch_table_lookup::<bf16>()
+        .collect::<m![H % 120, Qs / 16 % 128], m![Qs % 16]>()
+        .contract_outer::<m![H % 120, Qs / 32 % 64], m![Qs % 32], _, _, _>(&x_trf)
+        .contract_packet::<m![1]>()
+        .contract_time::<m![H % 120]>()
+        .contract_lane::<m![H % 120], m![1 # 8]>(LaneMode::Interleaved)
+        .vector_init()
+        .vector_inter_slice_reduce::<HiddenRows, m![H % 120]>(InterSliceReduceOpF32::Add)
+        .vector_final()
+        .cast::<bf16, m![1 # 16]>()
+        .transpose::<m![H / 4 % 30], m![H % 4 # 16]>()
+        .commit_trim::<m![H % 4]>()
+        .commit()
+}
 
 fn output_partial(
     ctx: &mut Context,
