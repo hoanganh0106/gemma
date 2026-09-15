@@ -3,3 +3,14 @@ Cargo.lock
 /ref
 **/__pycache__
 .venv/
+
+# Local code-index data
+/.codegraph/
+
+# Local optimization experiments and generated Arena artifacts
+/backups/
+*.log
+test_runtime
+fixtures.safetensors
+schedule*.json
+schedule*_summary/

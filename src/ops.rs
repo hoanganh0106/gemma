@@ -56,19 +56,22 @@ pub fn sliding_project_qkv(
     v_cache: &mut HbmTensor<bf16, Chip, m![Ts, Ns, Ds]>,
     q_out: &mut HbmTensor<bf16, Chip, m![Ns, Gs, Ds]>,
 ) {
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = x.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &x, input_rms_weight);
-
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![H]> = layout::broadcast_hidden(ctx, &x);
+    let x: DmTensor<bf16, Chip, m![1 #{!} 2], Slice, m![H]> = x.to_dm(&mut ctx.tdma);
+    let x_dist: DmTensor<bf16, Chip, m![Dummy2], Replicated, m![H]> =
+        shared::rmsnorm::normalize_replicated_k1(ctx, &x, input_rms_weight);
 
     let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> =
-        sliding::projection::project_query(ctx, &x, q_weight, q_weight_scale);
-    let (k, v) = sliding::projection::project_key_value(ctx, &x, k_weight, v_weight, k_weight_scale, v_weight_scale);
+        sliding::projection::project_query_dist_f8_hbm(ctx, &x_dist, q_weight, q_weight_scale);
+    let k_dist = sliding::projection::project_value_dist4_raw(ctx, &x_dist, k_weight, k_weight_scale);
+    let v_dist = sliding::projection::project_value_dist4_raw(ctx, &x_dist, v_weight, v_weight_scale);
 
     let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> =
         sliding::rmsnorm::normalize_query(ctx, &q, q_rms_weight);
-    let k: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = sliding::rmsnorm::normalize_key(ctx, &k, k_rms_weight);
-    let v: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = sliding::rmsnorm::normalize_value(ctx, &v);
+    let k_dense = sliding::rmsnorm::normalize_key_dist4_via_pack(ctx, &k_dist, k_rms_weight);
+    let mut k_hbm: HbmTensor<bf16, Chip, m![Ns, Ds]> = HbmTensor::new();
+    k_dense.view().to_hbm_view(&mut ctx.tdma, k_hbm.view_mut());
+    let k: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = k_hbm.to_dm(&mut ctx.tdma);
+    let v = sliding::rmsnorm::normalize_value_dist4_via_pack(ctx, &v_dist);
 
     let (q, k) = sliding::rope::apply_rope(ctx, &q, &k, rope_offset, cos, sin);
 
@@ -138,15 +141,44 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![Ns, Gs, Ds]> = x.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]> = unsafe { x.reshape() };
+    type ProjectionClustersK16 = m![H / 1920];
+    type ProjectionRowsK16 = m![H / 120 % 16, Qs / 256];
+    type ProjectionGatherRowsK16 = m![H / 120 % 16, 1 # 16];
+    type ReducingSlices = m![1 # 32, H / 480];
 
-    let x = sliding::projection::project_output_distributed(ctx, &x, o_weight, o_weight_scale);
-    let residual = shared::rmsnorm::normalize_and_add_residual_distributed(
+    let residual_saved: DmTensor<bf16, Chip, Cluster, ReducingSlices, m![H % 480]> =
+        residual_hbm.to_dm(&mut ctx.tdma);
+    let output_scale_saved: DmTensor<bf16, Chip, Cluster, ReducingSlices, m![H % 480]> =
+        o_weight_scale.to_dm(&mut ctx.tdma);
+    let rms_weight_saved: DmTensor<bf16, Chip, Cluster, ReducingSlices, m![H % 480]> =
+        post_attn_rms_weight.to_dm(&mut ctx.tdma);
+
+    let x_view: HbmTensorView<'_, bf16, Chip, m![Qs]> =
+        unsafe { x.view().reshape::<Chip, m![Qs]>() };
+    let x: DmTensor<bf16, Chip, ProjectionClustersK16, ProjectionRowsK16, m![Qs % 256]> =
+        x_view.to_dm(&mut ctx.tdma);
+    let projected_split = sliding::projection::project_output_cluster_split_k16(ctx, &x, o_weight);
+    let projected_split: DmTensor<
+        bf16,
+        Chip,
+        ProjectionClustersK16,
+        ProjectionGatherRowsK16,
+        m![H % 120],
+    > = projected_split.to_dm(&mut ctx.tdma);
+
+    let mut projected_hbm: HbmTensor<bf16, Chip, m![H]> = HbmTensor::new();
+    projected_split
+        .view()
+        .to_hbm_view(&mut ctx.tdma, projected_hbm.view_mut());
+    let projected: DmTensor<bf16, Chip, Cluster, ReducingSlices, m![H % 480]> =
+        projected_hbm.to_dm(&mut ctx.tdma);
+
+    let residual = shared::rmsnorm::scale_normalize_and_add_residual_distributed(
         ctx,
-        &x,
-        post_attn_rms_weight,
-        residual_hbm,
+        &projected,
+        &output_scale_saved,
+        &rms_weight_saved,
+        &residual_saved,
     );
     residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }

@@ -10,2719 +10,273 @@ const INVSQRT2: f32 = 0.70710678118f32;
 pub(crate) type UpGateRows = m![L / 60];
 pub(crate) type UpGateRowsPaired = m![L / 120, 1 # 2];
 
+pub(crate) type AutoUgCluster2 = m![L # 16384 / 8192];
+pub(crate) type AutoUgSlices2 = m![L # 16384 / 32 % 256];
 pub(crate) fn project_up_and_gate(
     ctx: &mut Context,
-    x_trf: &TrfTensor<bf16, Chip, Cluster, UpGateRows, m![1], m![H]>,
-    up_weight_packed: &HbmTensor<f4e2m1, Chip, m![L, H]>,
-    gate_weight_packed: &HbmTensor<f4e2m1, Chip, m![L, H]>,
-    up_weight_scale: &HbmTensor<f8e4m3, Chip, m![L, H / 16]>,
-    gate_weight_scale: &HbmTensor<f8e4m3, Chip, m![L, H / 16]>,
-) -> (
-    DmTensor<bf16, Chip, Cluster, UpGateRows, m![L % 60]>,
-    DmTensor<bf16, Chip, Cluster, UpGateRows, m![L % 60]>,
-) {
-    // EXP-013A:
-    // Fuse f4 table lookup + f8->f32 cast + local-scale multiply.
-    // Eliminate the intermediate decoded-f8 DM tensor for UP and GATE.
-    //
-    // Per 4-row tile / slice:
-    //   packed f4        = 4 * 3840 * 0.5 = 7680 B
-    //   removed f8 DM    = 4 * 3840 * 1   = 15360 B
-    //   scale VRF f32    = 4 * 240  * 4   = 3840 B
-    //
-    // HBM traffic and contraction count are unchanged.
-    const ROWS_PER_SLICE: usize = 60;
-    const ROWS_PER_PASS: usize = 4;
-    const PASSES: usize = ROWS_PER_SLICE / ROWS_PER_PASS;
-
-    let mut up: DmTensor<bf16, Chip, Cluster, UpGateRows, m![L % 60]> = DmTensor::new();
-    let mut gate: DmTensor<bf16, Chip, Cluster, UpGateRows, m![L % 60]> = DmTensor::new();
-
-    // EXP-005A hypothesis:
-    // Stream UP/GATE weights in 4-row tiles directly from HBM instead of
-    // materializing full 60-row packed/decoded/scale tensors in DM.
-    //
-    // Per-slice live data for one 4-row branch tile:
-    //   packed FP4 : 4 * H * 0.5 B =  7,680 B
-    //   decoded FP8: 4 * H * 1   B = 15,360 B
-    //   local scale: 4 * H/16    B =    960 B
-    //   BF16 weight: 4 * H * 2   B = 30,720 B
-    //   total ≈ 54,720 B/slice
-    //
-    // This is far below DM = 512 KiB/slice, so the compiler can potentially
-    // overlap TDMA for one tile/branch with Main/Vector work from another.
-    //
-    // Contraction remains 4 rows (bf16 Transpose max_in_rows = 4).
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_0: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(0)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_0: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(0)
-    .to_dm(&mut ctx.tdma);
-
-        // EXP-025A UP pass 0
+    x_trf: &TrfTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![1], m![H]>,
+    up_weight_packed: &HbmTensor<f4e2m1, Chip, m![L, H]>, gate_weight_packed: &HbmTensor<f4e2m1, Chip, m![L, H]>,
+    up_weight_scale: &HbmTensor<f8e4m3, Chip, m![L, H / 16]>, gate_weight_scale: &HbmTensor<f8e4m3, Chip, m![L, H / 16]>,
+) -> (DmTensor<bf16, Chip, Cluster, UpGateRows, m![L % 60]>, DmTensor<bf16, Chip, Cluster, UpGateRows, m![L % 60]>) {
+    let up_p: DmTensor<f4e2m1, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32, H]> = up_weight_packed.to_dm(&mut ctx.tdma);
+    let up_s: DmTensor<f8e4m3, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32, H / 16]> = up_weight_scale.to_dm(&mut ctx.tdma);
+    let gate_p: DmTensor<f4e2m1, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32, H]> = gate_weight_packed.to_dm(&mut ctx.tdma);
+    let gate_s: DmTensor<f8e4m3, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32, H / 16]> = gate_weight_scale.to_dm(&mut ctx.tdma);
+    let mut up: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32]> = DmTensor::new();
+    let mut gate: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32]> = DmTensor::new();
     {
-        // ---------- UP tile ----------
-        let up_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = up_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(0)
-            .to_dm(&mut ctx.tdma);
-
-
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_0
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(up_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(0),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = gate_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(0)
-            .to_dm(&mut ctx.tdma);
-
-
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_0
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(gate_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(0),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(up_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(0))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(up_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(0))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_up_0: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_up_0.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(0));
+        ctx.main.begin(partial_up_0.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(4));
     }
-
-    // EXP-025A UP pass 1
     {
-        // ---------- UP tile ----------
-        let up_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = up_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(4)
-            .to_dm(&mut ctx.tdma);
-
-
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_0
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(up_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(4),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = gate_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(4)
-            .to_dm(&mut ctx.tdma);
-
-
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_0
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(gate_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(4),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(gate_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(0))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(gate_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(0))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_gate_0: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_gate_0.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(0));
+        ctx.main.begin(partial_gate_0.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(4));
     }
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_1: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(8)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_1: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(8)
-    .to_dm(&mut ctx.tdma);
-
-    // EXP-025A UP pass 2
     {
-        // ---------- UP tile ----------
-        let up_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = up_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(8)
-            .to_dm(&mut ctx.tdma);
-
-
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_1
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(up_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(8),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = gate_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(8)
-            .to_dm(&mut ctx.tdma);
-
-
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_1
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(gate_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(8),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(up_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(8))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(up_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(8))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_up_8: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_up_8.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(8));
+        ctx.main.begin(partial_up_8.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(12));
     }
-
-    // EXP-025A UP pass 3
     {
-        // ---------- UP tile ----------
-        let up_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = up_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(12)
-            .to_dm(&mut ctx.tdma);
-
-
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_1
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(up_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(12),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = gate_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(12)
-            .to_dm(&mut ctx.tdma);
-
-
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_1
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(gate_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(12),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(gate_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(8))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(gate_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(8))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_gate_8: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_gate_8.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(8));
+        ctx.main.begin(partial_gate_8.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(12));
     }
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_2: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(16)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_2: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(16)
-    .to_dm(&mut ctx.tdma);
-
-
-
-    // Batch C: one 8-row UP packed DMA for passes 4+5
-    let up_weight_packed_pair_2: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = up_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(16)
-        .to_dm(&mut ctx.tdma);
-
-    // Batch C: one 8-row GATE packed DMA for passes 4+5
-    let gate_weight_packed_pair_2: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = gate_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(16)
-        .to_dm(&mut ctx.tdma);
-    // EXP-025A UP pass 4
     {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_2
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_2
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(16),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_2
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_2
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(16),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(up_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(16))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(up_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(16))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_up_16: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_up_16.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(16));
+        ctx.main.begin(partial_up_16.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(20));
     }
-
-    // EXP-025A UP pass 5
     {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_2
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_2
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(20),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_2
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_2
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(20),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(gate_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(16))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(gate_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(16))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_gate_16: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_gate_16.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(16));
+        ctx.main.begin(partial_gate_16.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(20));
     }
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_3: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(24)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_3: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(24)
-    .to_dm(&mut ctx.tdma);
-
-
-
-    // Batch C: one 8-row UP packed DMA for passes 6+7
-    let up_weight_packed_pair_3: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = up_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(24)
-        .to_dm(&mut ctx.tdma);
-
-    // Batch C: one 8-row GATE packed DMA for passes 6+7
-    let gate_weight_packed_pair_3: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = gate_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(24)
-        .to_dm(&mut ctx.tdma);
-    // EXP-025A UP pass 6
     {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_3
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_3
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(24),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_3
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_3
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(24),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(up_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(24))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(up_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(24))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_up_24: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_up_24.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(24));
+        ctx.main.begin(partial_up_24.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(up.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(28));
     }
-
-    // EXP-025A UP pass 7
     {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_3
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_3
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(28),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_3
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_3
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(28),
-            );
+        let sv: VrfTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H / 16]> = ctx.sub
+            .begin(gate_s.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H / 16]>(24))
+            .fetch::<m![L # 16384 % 32 = 8], m![H / 16]>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 128], m![H / 16 % 8]>().to_vrf();
+        let w: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, H]> = ctx.main
+            .begin(gate_p.view().tile::<m![L # 16384 % 32], 8, m![L # 16384 % 32 = 8 # 32, H]>(24))
+            .fetch::<m![L # 16384 % 32 = 8], m![H]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![L # 16384 % 32 = 8, H / 4], m![H % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sv)
+            .vector_widen_concat::<m![L # 16384 % 32 = 8, H / 8], m![H % 8]>()
+            .vector_final().cast::<bf16, m![H % 8 # 16]>().commit_trim::<m![H % 8]>().commit();
+        let partial_gate_24: DmTensor<f32, Chip, AutoUgCluster2, AutoUgSlices2, m![L # 16384 % 32 = 8, 1 # 8]> = ctx.main.begin(w.view()).fetch::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .collect::<m![L # 16384 % 32 = 8, H / 16], m![H % 16]>()
+            .contract_outer::<m![L # 16384 % 32 = 8, H / 32], m![H % 32], _, _, _>(&x_trf)
+            .contract_packet::<m![1]>().contract_time::<m![L # 16384 % 32 = 8]>()
+            .contract_lane::<m![L # 16384 % 32 = 8], m![1 # 8]>(LaneMode::Interleaved)
+            .commit_trim::<m![1 # 8]>().commit();
+        ctx.main.begin(partial_gate_24.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(0))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(24));
+        ctx.main.begin(partial_gate_24.view().tile::<m![L # 16384 % 32 = 8], 4, m![L # 16384 % 32 = 4 # 8, 1 # 8]>(4))
+            .fetch::<m![L # 16384 % 32 = 4], m![1 # 8]>().collect::<m![L # 16384 % 32 = 4], m![1 # 8]>()
+            .cast::<bf16, m![1 # 16]>().transpose::<m![1], m![L # 16384 % 32 = 4 # 16]>()
+            .commit_trim::<m![L # 16384 % 32 = 4]>()
+            .commit_view(gate.view_mut().tile::<m![L # 16384 % 32], 4, m![L # 16384 % 32 = 4 #{!} 32]>(28));
     }
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_4: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(32)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_4: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(32)
-    .to_dm(&mut ctx.tdma);
-
-
-
-    // Batch C: one 8-row UP packed DMA for passes 8+9
-    let up_weight_packed_pair_4: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = up_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(32)
-        .to_dm(&mut ctx.tdma);
-
-    // Batch C: one 8-row GATE packed DMA for passes 8+9
-    let gate_weight_packed_pair_4: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = gate_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(32)
-        .to_dm(&mut ctx.tdma);
-    // EXP-025A UP pass 8
-    {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_4
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_4
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(32),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_4
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_4
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(32),
-            );
-    }
-
-    // EXP-025A UP pass 9
-    {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_4
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_4
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(36),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_4
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_4
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(36),
-            );
-    }
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_5: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(40)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_5: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(40)
-    .to_dm(&mut ctx.tdma);
-
-
-
-    // Batch C: one 8-row UP packed DMA for passes 10+11
-    let up_weight_packed_pair_5: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = up_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(40)
-        .to_dm(&mut ctx.tdma);
-
-    // Batch C: one 8-row GATE packed DMA for passes 10+11
-    let gate_weight_packed_pair_5: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = gate_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(40)
-        .to_dm(&mut ctx.tdma);
-    // EXP-025A UP pass 10
-    {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_5
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_5
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(40),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_5
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_5
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(40),
-            );
-    }
-
-    // EXP-025A UP pass 11
-    {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_5
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_5
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(44),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_5
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_5
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(44),
-            );
-    }
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let up_scale_pair_6: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = up_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(48)
-    .to_dm(&mut ctx.tdma);
-
-// EXP-028A: one 8-row scale DMA supplies two adjacent 4-row passes.
-let gate_scale_pair_6: DmTensor<
-    f8e4m3,
-    Chip,
-    Cluster,
-    UpGateRows,
-    m![L % 60 = 8, H / 16],
-> = gate_weight_scale
-    .view()
-    .tile::<
-        m![L % 60],
-        8,
-        m![L / 60, L % 60 = 8 # 60, H / 16],
-    >(48)
-    .to_dm(&mut ctx.tdma);
-
-
-
-    // Batch C: one 8-row UP packed DMA for passes 12+13
-    let up_weight_packed_pair_6: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = up_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(48)
-        .to_dm(&mut ctx.tdma);
-
-    // Batch C: one 8-row GATE packed DMA for passes 12+13
-    let gate_weight_packed_pair_6: DmTensor<
-        f4e2m1,
-        Chip,
-        Cluster,
-        UpGateRows,
-        m![L % 60 = 8, H],
-    > = gate_weight_packed
-        .view()
-        .tile::<
-            m![L % 60],
-            8,
-            m![L / 60, L % 60 = 8 # 60, H],
-        >(48)
-        .to_dm(&mut ctx.tdma);
-    // EXP-025A UP pass 12
-    {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_6
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_6
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(48),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_6
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(0),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_6
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(0),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(48),
-            );
-    }
-
-    // EXP-025A UP pass 13
-    {
-        // ---------- UP tile ----------
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            up_scale_pair_6
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                up_weight_packed_pair_6
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(52),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(
-            gate_scale_pair_6
-                .view()
-                .tile::<
-                    m![L % 60 = 8],
-                    4,
-                    m![L % 60 = 4 # 8, H / 16],
-                >(4),
-        )
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(
-                gate_weight_packed_pair_6
-                    .view()
-                    .tile::<
-                        m![L % 60 = 8],
-                        4,
-                        m![L % 60 = 4 # 8, H],
-                    >(4),
-            )
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(52),
-            );
-    }
-
-    // EXP-025A UP pass 14
-    {
-        // ---------- UP tile ----------
-        let up_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = up_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(56)
-            .to_dm(&mut ctx.tdma);
-
-        let up_weight_scale_tile: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = up_weight_scale
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H / 16]>(56)
-            .to_dm(&mut ctx.tdma);
-
-        let up_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(up_weight_scale_tile.view())
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let up_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(up_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &up_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(up_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                up.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(56),
-            );
-
-        // ---------- GATE tile ----------
-        let gate_weight_packed_tile: DmTensor<
-            f4e2m1,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = gate_weight_packed
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H]>(56)
-            .to_dm(&mut ctx.tdma);
-
-        let gate_weight_scale_tile: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = gate_weight_scale
-            .view()
-            .tile::<m![L % 60], 4, m![L / 60, L % 60 = 4 # 60, H / 16]>(56)
-            .to_dm(&mut ctx.tdma);
-
-        let gate_weight_scale_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H / 16],
-        > = ctx
-            .sub
-            .begin(gate_weight_scale_tile.view())
-            .fetch::<m![L % 60 = 4], m![H / 16]>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 16 / 8], m![H / 16 % 8]>()
-            .to_vrf();
-
-        let gate_weight: DmTensor<
-            bf16,
-            Chip,
-            Cluster,
-            UpGateRows,
-            m![L % 60 = 4, H],
-        > = ctx
-            .main
-            .begin(gate_weight_packed_tile.view())
-            // EXP-013A:
-            // f4 -> lookup f8 -> cast f32 in the same Fetch pipeline.
-            // Avoid materializing the intermediate f8 tensor in DM.
-            .fetch::<m![L % 60 = 4], m![H]>()
-            .fetch_table_lookup::<f8e4m3>()
-            .fetch_cast::<f32>()
-            .collect::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_init()
-            .vector_intra_slice_tag(TagMode::Zero)
-            .vector_narrow_split::<m![L % 60 = 4, H / 4], m![H % 4]>()
-            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &gate_weight_scale_vrf)
-            .vector_widen_concat::<m![L % 60 = 4, H / 8], m![H % 8]>()
-            .vector_final()
-            .cast::<bf16, m![H % 8 # 16]>()
-            .commit_trim::<m![H % 8]>()
-            .commit();
-
-        ctx.main
-            .begin(gate_weight.view())
-            .fetch::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .collect::<m![L % 60 = 4, H / 16], m![H % 16]>()
-            .contract_outer::<m![L % 60 = 4, H / 32], m![H % 32], _, _, _>(&x_trf)
-            .contract_packet::<m![1]>()
-            .contract_time::<m![L % 60 = 4]>()
-            .contract_lane::<m![L % 60 = 4], m![1 # 8]>(LaneMode::Interleaved)
-            .cast::<bf16, m![1 # 16]>()
-            .transpose::<m![1], m![L % 60 = 4 # 16]>()
-            .commit_trim::<m![L % 60 = 4]>()
-            .commit_view(
-                gate.view_mut()
-                    .tile::<m![L % 60], 4, m![L % 60 = 4 #{!} 60]>(56),
-            );
-    }
-
-    (up, gate)
+    let uh: HbmTensor<bf16, Chip, m![L]> = up.to_hbm(&mut ctx.tdma);
+    let gh: HbmTensor<bf16, Chip, m![L]> = gate.to_hbm(&mut ctx.tdma);
+    (uh.to_dm(&mut ctx.tdma), gh.to_dm(&mut ctx.tdma))
 }
+
 
 pub(crate) fn feedforward(
     ctx: &mut Context,
@@ -2737,13 +291,14 @@ pub(crate) fn feedforward(
     gate_global_scale: &HbmTensor<f32, Chip, m![1]>,
     down_global_scale: &HbmTensor<f32, Chip, m![1]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
-    let x: DmTensor<bf16, Chip, Cluster, UpGateRows, m![H]> = unsafe { x.reshape() };
-    let x_trf: TrfTensor<bf16, Chip, Cluster, UpGateRows, m![1], m![H]> = ctx
-        .sub
-        .begin(x.view())
-        .fetch::<m![H / 16], m![H % 16]>()
-        .collect::<m![H / 16], m![H % 16]>()
-        .to_trf();
+    // All Replicated input slices contain the same normalized H vector.
+    // Select its first physical copy; no reordering or precision change.
+    let x_one: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = unsafe { x.reshape() };
+    let x_hbm: HbmTensor<bf16, Chip, m![H]> = x_one.to_hbm(&mut ctx.tdma);
+    let x2: DmTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![H]> = x_hbm.to_dm(&mut ctx.tdma);
+    let x_trf: TrfTensor<bf16, Chip, AutoUgCluster2, AutoUgSlices2, m![1], m![H]> = ctx.sub.begin(x2.view())
+        .fetch::<m![H / 16], m![H % 16]>().collect::<m![H / 16], m![H % 16]>().to_trf();
+
 
     let (up, gate) = project_up_and_gate(
         ctx,
@@ -2907,915 +462,175 @@ pub(crate) fn geglu(
 pub(crate) type DownRows = m![H / 120, 1 # 8];
 pub(crate) type DownRowsByColumns = m![H / 120, L / 1920];
 
+pub(crate) type AutoDownCluster2 = m![H / 1920];
+pub(crate) type AutoDownSlices2 = m![H / 60 % 32, L / 1920];
+pub(crate) type AutoDownRows2 = m![H / 60 % 32, 1 # 8];
 pub(crate) fn project_down(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, UpGateRowsPaired, m![L % 120]>,
     down_weight_packed: &HbmTensor<f4e2m1, Chip, m![H, L]>,
     down_weight_scale: &HbmTensor<f8e4m3, Chip, m![H, L / 16]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
-    // EXP-004B hypothesis: perform one direct physical placement from the
-    // GeGLU producer layout (UpGateRowsPaired) into the DOWN consumer layout
-    // (DownRowsByColumns), instead of materializing DownRows [L] first.
-    // Dtype and values are unchanged; only the DM layout path changes.
-    // EXP-009A:
-    // Replace TDMA GeGLU->DOWN replication/repartition with one
-    // Switch Engine CustomBroadcast.
-    //
-    // Input:
-    //   Slice   = (L/120, 1#2)
-    //   Element = L%120
-    //
-    // Output:
-    //   Slice   = (H/120, L/1920) = (32, 8)
-    //   Element = L%1920
-    //
-    // 16 live input slices * 120 BF16 = 1920 values/output column.
-    // Because the input uses 1#2 physical padding:
-    //   Compiler slot sweep requires full ring_size 256 for this mapping.
-    // EXP-009A-v6 — ring256 + compiler-required Time-axis order:
-    // GeGLU -> DOWN direct Switch handoff using uniform 8-BF16 packets.
-    //
-    // Per GeGLU source slice:
-    //   L % 120 = 120 BF16
-    //            = 15 x 8 BF16
-    //
-    // Packet before Collect:
-    //   8 BF16 = 16 bytes
-    //
-    // Collect:
-    //   pads packet to 16 BF16 = 32-byte flit
-    //
-    // Commit trim:
-    //   16 BF16 physical -> 8 valid BF16 = 16 bytes
-    //
-    // Per DOWN output slice:
-    //   16 source slices x 15 chunks x 8 BF16
-    //   = 1920 BF16
-    //   = 3840 bytes/slice.
-    let x: DmTensor<
-        bf16,
-        Chip,
-        Cluster,
-        DownRowsByColumns,
-        m![L % 1920],
-    > = ctx
-        .main
-        .begin(x.view())
-        .fetch::<m![L / 8 % 15], m![L % 8]>()
-        .switch::<
-            DownRowsByColumns,
-            m![L / 8 % 15, L / 120 % 16],
-        >(
-            SwitchConfig::CustomBroadcast { ring_size: 256 },
-        )
-        .collect::<
-            m![L / 8 % 15, L / 120 % 16],
-            m![L % 8 # 16],
-        >()
-        .commit_trim::<m![L % 8]>()
-        .commit();
-    // EXP-024: keep x in DM and stream it through Main.
-    // DOWN weights become the Lane8 TRF operand.
-
-    // EXP-024B-manual: seven pair iterations expanded explicitly.
-
-    let mut down: DmTensor<bf16, Chip, Cluster, DownRows, m![H % 120]> = DmTensor::new();
-
-    // EXP-024B-manual pair 0
+    let x_hbm: HbmTensor<bf16, Chip, m![L]> = x.to_hbm(&mut ctx.tdma);
+    let x2: DmTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![L % 1920]> = x_hbm.to_dm(&mut ctx.tdma);
+    let mut down2: DmTensor<bf16, Chip, AutoDownCluster2, AutoDownRows2, m![H % 60]> = DmTensor::new();
+    let s_all: DmTensor<f8e4m3, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60, L / 16 % 120]> = down_weight_scale.to_dm(&mut ctx.tdma);
     {
-        let base = 0;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
+        // EXP-113 merged dequant group rows 0..15
+        let pg: DmTensor<f4e2m1, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L % 1920]> = down_weight_packed.view()
+            .tile::<m![H % 60], 16, m![H / 60, H % 60 = 16 # 60, L]>(0).to_dm(&mut ctx.tdma);
+        let sg = s_all.view().tile::<m![H % 60], 16, m![H % 60 = 16 # 60, L / 16 % 120]>(0);
+        let svg: VrfTensor<f32, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L / 16 % 120]> = ctx.sub.begin(sg)
+            .fetch::<m![H % 60 = 16], m![L / 16 % 120]>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 16, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
+        let wg: DmTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L % 1920]> = ctx.main.begin(pg.view())
+            .fetch::<m![H % 60 = 16], m![L % 1920]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 16, L / 8 % 240], m![L % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![H % 60 = 16, L / 4 % 480], m![L % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &svg)
+            .vector_widen_concat::<m![H % 60 = 16, L / 8 % 240], m![L % 8]>()
+            .vector_final().cast::<bf16, m![L % 8 # 16]>().commit_trim::<m![L % 8]>().commit();
+        let w0 = wg.view().tile::<m![H % 60 = 16], 8, m![H % 60 = 8 # 16, L % 1920]>(0);
+        let t0: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w0)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t0)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(0));
+        let w8 = wg.view().tile::<m![H % 60 = 16], 8, m![H % 60 = 8 # 16, L % 1920]>(8);
+        let t8: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w8)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t8)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(8));
     }
-
-    // EXP-024B-manual pair 1
     {
-        let base = 16;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
+        // EXP-113 merged dequant group rows 16..31
+        let pg: DmTensor<f4e2m1, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L % 1920]> = down_weight_packed.view()
+            .tile::<m![H % 60], 16, m![H / 60, H % 60 = 16 # 60, L]>(16).to_dm(&mut ctx.tdma);
+        let sg = s_all.view().tile::<m![H % 60], 16, m![H % 60 = 16 # 60, L / 16 % 120]>(16);
+        let svg: VrfTensor<f32, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L / 16 % 120]> = ctx.sub.begin(sg)
+            .fetch::<m![H % 60 = 16], m![L / 16 % 120]>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 16, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
+        let wg: DmTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L % 1920]> = ctx.main.begin(pg.view())
+            .fetch::<m![H % 60 = 16], m![L % 1920]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 16, L / 8 % 240], m![L % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![H % 60 = 16, L / 4 % 480], m![L % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &svg)
+            .vector_widen_concat::<m![H % 60 = 16, L / 8 % 240], m![L % 8]>()
+            .vector_final().cast::<bf16, m![L % 8 # 16]>().commit_trim::<m![L % 8]>().commit();
+        let w16 = wg.view().tile::<m![H % 60 = 16], 8, m![H % 60 = 8 # 16, L % 1920]>(0);
+        let t16: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w16)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t16)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(16));
+        let w24 = wg.view().tile::<m![H % 60 = 16], 8, m![H % 60 = 8 # 16, L % 1920]>(8);
+        let t24: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w24)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t24)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(24));
     }
-
-    // EXP-024B-manual pair 2
     {
-        let base = 32;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
+        // EXP-113 merged dequant group rows 32..47
+        let pg: DmTensor<f4e2m1, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L % 1920]> = down_weight_packed.view()
+            .tile::<m![H % 60], 16, m![H / 60, H % 60 = 16 # 60, L]>(32).to_dm(&mut ctx.tdma);
+        let sg = s_all.view().tile::<m![H % 60], 16, m![H % 60 = 16 # 60, L / 16 % 120]>(32);
+        let svg: VrfTensor<f32, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L / 16 % 120]> = ctx.sub.begin(sg)
+            .fetch::<m![H % 60 = 16], m![L / 16 % 120]>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 16, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
+        let wg: DmTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 16, L % 1920]> = ctx.main.begin(pg.view())
+            .fetch::<m![H % 60 = 16], m![L % 1920]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 16, L / 8 % 240], m![L % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![H % 60 = 16, L / 4 % 480], m![L % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &svg)
+            .vector_widen_concat::<m![H % 60 = 16, L / 8 % 240], m![L % 8]>()
+            .vector_final().cast::<bf16, m![L % 8 # 16]>().commit_trim::<m![L % 8]>().commit();
+        let w32 = wg.view().tile::<m![H % 60 = 16], 8, m![H % 60 = 8 # 16, L % 1920]>(0);
+        let t32: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w32)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t32)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(32));
+        let w40 = wg.view().tile::<m![H % 60 = 16], 8, m![H % 60 = 8 # 16, L % 1920]>(8);
+        let t40: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w40)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t40)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(40));
     }
-
-    // EXP-024B-manual pair 3
     {
-        let base = 48;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
+        // EXP-113 merged dequant group rows 48..59
+        let pg: DmTensor<f4e2m1, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 12, L % 1920]> = down_weight_packed.view()
+            .tile::<m![H % 60], 12, m![H / 60, H % 60 = 12 # 60, L]>(48).to_dm(&mut ctx.tdma);
+        let sg = s_all.view().tile::<m![H % 60], 12, m![H % 60 = 12 # 60, L / 16 % 120]>(48);
+        let svg: VrfTensor<f32, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 12, L / 16 % 120]> = ctx.sub.begin(sg)
+            .fetch::<m![H % 60 = 12], m![L / 16 % 120]>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 12, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
+        let wg: DmTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 12, L % 1920]> = ctx.main.begin(pg.view())
+            .fetch::<m![H % 60 = 12], m![L % 1920]>().fetch_table_lookup::<f8e4m3>().fetch_cast::<f32>()
+            .collect::<m![H % 60 = 12, L / 8 % 240], m![L % 8]>()
+            .vector_init().vector_intra_slice_tag(TagMode::Zero)
+            .vector_narrow_split::<m![H % 60 = 12, L / 4 % 480], m![L % 4]>()
+            .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &svg)
+            .vector_widen_concat::<m![H % 60 = 12, L / 8 % 240], m![L % 8]>()
+            .vector_final().cast::<bf16, m![L % 8 # 16]>().commit_trim::<m![L % 8]>().commit();
+        let w48 = wg.view().tile::<m![H % 60 = 12], 8, m![H % 60 = 8 # 12, L % 1920]>(0);
+        let t48: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 8], m![L % 1920]> = ctx.sub.begin(w48)
+            .fetch::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 8, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t48)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
+            .contract_lane::<m![1], m![H % 60 = 8 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 8 # 16]>().commit_trim::<m![H % 60 = 8]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 8, m![H % 60 = 8 #{!} 60]>(48));
+        let w56 = wg.view().tile::<m![H % 60 = 12], 4, m![H % 60 = 4 # 12, L % 1920]>(8);
+        let t56: TrfTensor<bf16, Chip, AutoDownCluster2, AutoDownSlices2, m![H % 60 = 4], m![L % 1920]> = ctx.sub.begin(w56)
+            .fetch::<m![H % 60 = 4, L / 16 % 120], m![L % 16]>()
+            .collect::<m![H % 60 = 4, L / 16 % 120], m![L % 16]>().to_trf();
+        ctx.main.begin(x2.view()).fetch::<m![L / 16 % 120], m![L % 16]>().collect::<m![L / 16 % 120], m![L % 16]>()
+            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t56)
             .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
+            .contract_lane::<m![1], m![H % 60 = 4 # 8]>(LaneMode::Interleaved)
+            .vector_init().vector_inter_slice_reduce::<AutoDownRows2, m![1]>(InterSliceReduceOpF32::Add)
+            .vector_final().cast::<bf16, m![H % 60 = 4 # 16]>().commit_trim::<m![H % 60 = 4]>()
+            .commit_view(down2.view_mut().tile::<m![H % 60], 4, m![H % 60 = 4 #{!} 60]>(56));
     }
-
-    // EXP-024B-manual pair 4
-    {
-        let base = 64;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
-    }
-
-    // EXP-024B-manual pair 5
-    {
-        let base = 80;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
-    }
-
-    // EXP-024B-manual pair 6
-    {
-        let base = 96;
-
-        let a_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        // EXP-026A:
-        // One 16-row scale DMA supplies both Lane8 weights in this pair.
-        let ab_scale_dm: DmTensor<
-            f8e4m3,
-            Chip,
-            Cluster,
-            DownRowsByColumns,
-            m![H % 120 = 16, L / 16 % 120],
-        > = down_weight_scale
-            .view()
-            .tile::<
-                m![H % 120],
-                16,
-                m![H / 120, H % 120 = 16 # 120, L / 16],
-            >(base)
-            .to_dm(&mut ctx.tdma);
-        let a_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(0),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let a_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(a_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &a_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let a_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(a_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        let b_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base + 8)
-                .to_dm(&mut ctx.tdma);
-
-        let b_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(
-                ab_scale_dm
-                    .view()
-                    .tile::<
-                        m![H % 120 = 16],
-                        8,
-                        m![H % 120 = 8 # 16, L / 16 % 120],
-                    >(8),
-            )
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let b_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(b_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &b_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let b_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(b_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&a_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&b_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base + 8));
-    }
-
-    {
-        let base = 112;
-        let t_packed: DmTensor<f4e2m1, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            down_weight_packed.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L]>(base)
-                .to_dm(&mut ctx.tdma);
-
-        let t_scale_dm: DmTensor<f8e4m3, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            down_weight_scale.view()
-                .tile::<m![H % 120], 8, m![H / 120, H % 120 = 8 # 120, L / 16]>(base)
-                .to_dm(&mut ctx.tdma);
-        let t_scale_vrf: VrfTensor<f32, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L / 16 % 120]> =
-            ctx.sub.begin(t_scale_dm.view())
-                .fetch::<m![H % 120 = 8], m![L / 16 % 120]>().fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 128 % 15], m![L / 16 % 8]>().to_vrf();
-        let t_weight: DmTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8, L % 1920]> =
-            ctx.main.begin(t_packed.view())
-                .fetch::<m![H % 120 = 8], m![L % 1920]>()
-                .fetch_table_lookup::<f8e4m3>()
-                .fetch_cast::<f32>()
-                .collect::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_init().vector_intra_slice_tag(TagMode::Zero)
-                .vector_narrow_split::<m![H % 120 = 8, L / 4 % 480], m![L % 4]>()
-                .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &t_scale_vrf)
-                .vector_widen_concat::<m![H % 120 = 8, L / 8 % 240], m![L % 8]>()
-                .vector_final().cast::<bf16, m![L % 8 # 16]>()
-                .commit_trim::<m![L % 8]>().commit();
-        let t_trf: TrfTensor<bf16, Chip, Cluster, DownRowsByColumns, m![H % 120 = 8], m![L % 1920]> =
-            ctx.sub.begin(t_weight.view())
-                .fetch::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>()
-                .collect::<m![H % 120 = 8, L / 16 % 120], m![L % 16]>().to_trf();
-
-        ctx.main.begin(x.view())
-            .fetch::<m![L / 16 % 120], m![L % 16]>()
-            .collect::<m![L / 16 % 120], m![L % 16]>()
-            .contract_outer::<m![L / 32 % 60], m![L % 32], _, _, _>(&t_trf)
-            .contract_packet::<m![1]>().contract_time::<m![1]>()
-            .contract_lane::<m![1], m![H % 120 = 8]>(LaneMode::Interleaved)
-            .vector_init()
-            .vector_inter_slice_reduce::<DownRows, m![1]>(InterSliceReduceOpF32::Add)
-            .vector_final().cast::<bf16, m![H % 120 = 8 # 16]>()
-            .commit_trim::<m![H % 120 = 8]>()
-            .commit_view(down.view_mut().tile::<m![H % 120], 8, m![H % 120 = 8 #{!} 120]>(base));
-    }
-
-    down.to_dm(&mut ctx.tdma)
+    let out_hbm: HbmTensor<bf16, Chip, m![H]> = down2.to_hbm(&mut ctx.tdma);
+    out_hbm.to_dm(&mut ctx.tdma)
 }
