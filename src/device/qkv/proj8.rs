@@ -4,7 +4,7 @@
 //! cluster that projected them: no DMA gather, no HBM round trip.
 use furiosa_opt_std::prelude::*;
 
-use super::{HeadClusters, HeadSlices, KvRowsByHead, QueryRowsByHead};
+use super::{HeadClusters, HeadSlices, KvRowsByHead, QueryRowsByHead, Term};
 use crate::Chip;
 use crate::axes::{Ds, Gs, H, Ns, Ps, Qs};
 use crate::device::layout::{KeyValueClusters, QueryClusters};
@@ -13,45 +13,17 @@ use super::proj::{KeyValueRowSlices, QueryRowSlices};
 
 pub(crate) fn project_query(
     ctx: &mut Context,
-    x1: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
-    x2: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
     weight: &HbmTensor<f8e4m3, Chip, m![Qs, H]>,
     weight_scale: &HbmTensor<bf16, Chip, m![Qs]>,
 ) -> DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Gs, Ds]> {
-    let x1_trf = query_operand(ctx, x1);
-    let x2_trf = query_operand(ctx, x2);
+    let x_trf = query_operand(ctx, x);
 
     let weight_f8: DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Qs % 8, H]> = weight.to_dm(&mut ctx.tdma);
 
-    let term1 = contract_query(ctx, &weight_f8, &x1_trf);
-    let term2 = contract_query(ctx, &weight_f8, &x2_trf);
-
+    let contraction = contract_query(ctx, &weight_f8, &x_trf);
     // Relabel only: Qs = (Ns, Gs, Ds) row-major, so cluster Qs/2048 is Ns/4, slice Qs/8%256 is
     // (Ns%4, Gs, Ds/8) and the in-slice Qs%8 is Ds%8. Same physical order.
-    // term1 + term2 on the row slices, term2 riding in the VRF. (Feeding both terms through
-    // begin_interleaved + Switch gather + unzip/zip in ONE pass lowers but gave wrong Q on the device.)
-    let term2_vrf: VrfTensor<f32, Chip, QueryClusters, QueryRowSlices, m![Qs % 8]> = ctx
-        .sub
-        .begin(term2.view())
-        .fetch::<m![1], m![Qs % 8]>()
-        .fetch_cast::<f32>()
-        .collect::<m![1], m![Qs % 8]>()
-        .to_vrf();
-    let contraction: DmTensor<bf16, Chip, QueryClusters, QueryRowSlices, m![Qs % 8]> = ctx
-        .main
-        .begin(term1.view())
-        .fetch::<m![1], m![Qs % 8]>()
-        .fetch_cast::<f32>()
-        .collect::<m![1], m![Qs % 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![Qs / 4 % 2], m![Qs % 4]>()
-        .vector_fp_binary(FpBinaryOp::AddF, &term2_vrf)
-        .vector_widen_concat::<m![1], m![Qs % 8]>()
-        .vector_final()
-        .cast::<bf16, m![Qs % 8 # 16]>()
-        .commit_trim::<m![Qs % 8]>()
-        .commit();
     let contraction: DmTensor<bf16, Chip, HeadClusters, QueryRowsByHead, m![Ds % 8]> =
         unsafe { contraction.reshape() };
 
@@ -86,42 +58,15 @@ pub(crate) fn project_query(
 
 fn project_one_kv_matrix(
     ctx: &mut Context,
-    x1_trf: &KvOperand,
-    x2_trf: &KvOperand,
+    x_trf: &KvOperand,
     weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
 ) -> DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]> {
     let weight_f8: DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4, H]> =
         weight.to_dm(&mut ctx.tdma);
 
-    let term1 = contract_key_value(ctx, &weight_f8, x1_trf);
-    let term2 = contract_key_value(ctx, &weight_f8, x2_trf);
-
+    let contraction = contract_key_value(ctx, &weight_f8, x_trf);
     // Relabel only: Ps = (Ns, Ds) row-major: cluster Ns/4, slice (Ns%4, Ds/4), in-slice Ds%4.
-    // term1 + term2 on the row slices. Four values per slice cannot take the interleave/zip pair
-    // path (it has no narrow_trim), so term2 rides in the VRF.
-    let term2_vrf: VrfTensor<f32, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4 # 8]> = ctx
-        .sub
-        .begin(term2.view())
-        .fetch::<m![1], m![Ps % 4]>()
-        .fetch_cast::<f32>()
-        .collect::<m![1], m![Ps % 4 # 8]>()
-        .to_vrf();
-    let contraction: DmTensor<bf16, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4]> = ctx
-        .main
-        .begin(term1.view())
-        .fetch::<m![1], m![Ps % 4]>()
-        .fetch_cast::<f32>()
-        .collect::<m![1], m![Ps % 4 # 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_trim::<m![Ps % 4]>()
-        .vector_fp_binary(FpBinaryOp::AddF, &term2_vrf)
-        .vector_widen_pad::<m![Ps % 4 # 8]>()
-        .vector_final()
-        .cast::<bf16, m![Ps % 4 # 8 # 16]>()
-        .commit_trim::<m![Ps % 4]>()
-        .commit();
     let contraction: DmTensor<bf16, Chip, HeadClusters, KvRowsByHead, m![Ds % 4]> = unsafe { contraction.reshape() };
 
     let weight_scale: HbmTensorView<'_, bf16, Chip, m![Ns, Ds]> = unsafe { weight_scale.view().reshape() };
@@ -154,8 +99,7 @@ fn project_one_kv_matrix(
 
 pub(crate) fn project_key_value(
     ctx: &mut Context,
-    x1: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
-    x2: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
     k_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     v_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
@@ -164,38 +108,41 @@ pub(crate) fn project_key_value(
     DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,
     DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,
 ) {
-    let x1_trf = key_value_operand(ctx, x1);
-    let x2_trf = key_value_operand(ctx, x2);
+    let x_trf = key_value_operand(ctx, x);
 
-    let k = project_one_kv_matrix(ctx, &x1_trf, &x2_trf, k_weight, k_weight_scale);
-    let v = project_one_kv_matrix(ctx, &x1_trf, &x2_trf, v_weight, v_weight_scale);
+    let k = project_one_kv_matrix(ctx, &x_trf, k_weight, k_weight_scale);
+    let v = project_one_kv_matrix(ctx, &x_trf, v_weight, v_weight_scale);
 
     (k, v)
 }
 
-type QueryOperand = TrfTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![1], m![H]>;
-type KvOperand = TrfTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![1], m![H]>;
+/// The two f8 terms of the hidden state, one per TRF lane: the contraction multiplies the weight
+/// stream against both lanes at once, so the second term costs no extra pass.
+type QueryOperand = TrfTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term], m![H]>;
+type KvOperand = TrfTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Term], m![H]>;
 
 fn query_operand(
     ctx: &mut Context,
-    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
 ) -> QueryOperand {
     ctx.sub
         .begin(x.view())
-        .fetch::<m![1], m![H]>()
-        .collect::<m![H / 32], m![H % 32]>()
+        .fetch::<m![Term], m![H]>()
+        .collect::<m![Term, H / 32], m![H % 32]>()
         .to_trf()
 }
 
 fn key_value_operand(
     ctx: &mut Context,
-    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
 ) -> KvOperand {
-    let x: DmTensorView<'_, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![H]> = unsafe { x.view().reshape() };
-    ctx.sub.begin(x).fetch::<m![1], m![H]>().collect::<m![H / 32], m![H % 32]>().to_trf()
+    let x: DmTensorView<'_, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Term, H]> =
+        unsafe { x.view().reshape() };
+    ctx.sub.begin(x).fetch::<m![Term], m![H]>().collect::<m![Term, H / 32], m![H % 32]>().to_trf()
 }
 
-/// One f8 x f8 term of the Q projection: 8 whole rows per slice against the whole of H.
+/// The Q projection, f8 x f8: 8 whole rows per slice against both terms of H (one per lane); the
+/// vector engine adds the two lane results while they are still f32.
 fn contract_query(
     ctx: &mut Context,
     weight_f8: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Qs % 8, H]>,
@@ -208,7 +155,13 @@ fn contract_query(
         .contract_outer::<m![Qs % 8, H / 32], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![Qs % 8]>()
-        .contract_lane::<m![Qs % 8], m![1 # 8]>(LaneMode::Interleaved)
+        .contract_lane::<m![Qs % 8, Term], m![1 # 8]>(LaneMode::Sequential)
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_trim::<m![1 # 4]>()
+        .vector_intra_slice_reduce::<Term, m![Qs % 8], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_widen_pad::<m![1 # 8]>()
+        .vector_final()
         .cast::<bf16, m![1 # 16]>()
         .transpose::<m![Qs / 4 % 2], m![Qs % 4 # 16]>()
         .commit_trim::<m![Qs % 4]>()
@@ -227,7 +180,13 @@ fn contract_key_value(
         .contract_outer::<m![Ps % 4, H / 32], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![Ps % 4]>()
-        .contract_lane::<m![Ps % 4], m![1 # 8]>(LaneMode::Interleaved)
+        .contract_lane::<m![Ps % 4, Term], m![1 # 8]>(LaneMode::Sequential)
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_trim::<m![1 # 4]>()
+        .vector_intra_slice_reduce::<Term, m![Ps % 4], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_widen_pad::<m![1 # 8]>()
+        .vector_final()
         .cast::<bf16, m![1 # 16]>()
         .transpose::<m![1], m![Ps % 4 # 16]>()
         .commit_trim::<m![Ps % 4]>()

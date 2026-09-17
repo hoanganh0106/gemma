@@ -56,19 +56,21 @@ pub fn sliding_project_qkv(
     v_cache: &mut HbmTensor<bf16, Chip, m![Ts, Ns, Ds]>,
     q_out: &mut HbmTensor<bf16, Chip, m![Ns, Gs, Ds]>,
 ) {
-    use crate::device::qkv;
+    use crate::device::qkv::{self, Term};
+
+    let rope_rows = qkv::rope::load_tables(ctx, rope_offset, cos, sin);
 
     // Normalize on 16 real copies of sixteen 240-element pieces, then all-gather: every one of
     // the 256 slices of both clusters ends with a genuine copy of the whole normalized H.
-    let (x1, x2) = qkv::xnorm8::normalize_everywhere_f8::<layout::QueryClusters>(ctx, x, input_rms_weight);
-    let x1: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::proj::QueryRowSlices, m![H]> = unsafe { x1.reshape() };
-    let x2: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::proj::QueryRowSlices, m![H]> = unsafe { x2.reshape() };
+    let x = qkv::xnorm8::normalize_everywhere_f8::<layout::QueryClusters>(ctx, x, input_rms_weight);
+    let x: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::proj::QueryRowSlices, m![Term, H]> =
+        unsafe { x.reshape() };
 
     // Each cluster keeps the four heads it projected, one head per slice, through the head
     // norms and RoPE. The two halves meet only in HBM: q_out and the KV cache are chip-wide.
     let q: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Gs, Ds]> =
-        qkv::proj8::project_query(ctx, &x1, &x2, q_weight, q_weight_scale);
-    let (k, v) = qkv::proj8::project_key_value(ctx, &x1, &x2, k_weight, v_weight, k_weight_scale, v_weight_scale);
+        qkv::proj8::project_query(ctx, &x, q_weight, q_weight_scale);
+    let (k, v) = qkv::proj8::project_key_value(ctx, &x, k_weight, v_weight, k_weight_scale, v_weight_scale);
 
     // Relabel to the axes the shared per-head tensors (norm weights, cos/sin) are copied over.
     let q: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Gs, Ds]> = unsafe { q.reshape() };
@@ -79,15 +81,15 @@ pub fn sliding_project_qkv(
     let k = qkv::headnorm::normalize_key(ctx, &k, k_rms_weight);
     let v = qkv::headnorm::normalize_value(ctx, &v);
 
-    let (q, k) = qkv::rope::apply_rope(ctx, &q, &k, rope_offset, cos, sin);
+    let (q, k) = qkv::rope::apply_rope(ctx, &q, &k, &rope_rows);
 
     let q: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Gs, Ds]> = unsafe { q.reshape() };
     let k: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Ds]> = unsafe { k.reshape() };
     let v: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Ds]> = unsafe { v.reshape() };
 
-    q.view().to_hbm_view(&mut ctx.tdma, q_out.view_mut());
-    k.dma_scatter::<m![1], _, _>(kv_offset, k_cache);
     v.dma_scatter::<m![1], _, _>(kv_offset, v_cache);
+    k.dma_scatter::<m![1], _, _>(kv_offset, k_cache);
+    q.view().to_hbm_view(&mut ctx.tdma, q_out.view_mut());
 }
 
 #[device(chip = 1)]
@@ -151,14 +153,7 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    // One DMA load hands every slice the 512 columns it contracts, once per row group. The
-    // Switch ring used to broadcast the whole vector on MainContext, one flit per target.
-    let x: DmTensor<bf16, Chip, layout::OutputClusters, m![H / 120 % 16, Ns, Gs], m![Ds]> =
-        x.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, layout::OutputClusters, layout::SlidingOutputColumns, m![Qs % 256]> =
-        unsafe { x.reshape() };
-
-    sliding::output::project_normalize_add(ctx, &x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
+    sliding::output::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
 }
 
 #[device(chip = 1)]

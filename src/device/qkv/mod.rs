@@ -13,7 +13,7 @@ pub(crate) mod rope;
 pub(crate) mod xnorm;
 pub(crate) mod xnorm8;
 
-axes![Rep16 = 16, Ring4 = 4, Ring8 = 8, Ring16 = 16, HeadCopy4 = 4, Term = 2];
+axes![Rep16 = 16, Ring4 = 4, Ring8 = 8, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2];
 
 /// The two clusters named by KV head: cluster 0 owns heads 0..3, cluster 1 heads 4..7.
 /// `Qs = Ns*Gs*Ds` and `Ps = Ns*Ds` row-major, so `Qs / 2048 == Ps / 1024 == Ns / 4`.

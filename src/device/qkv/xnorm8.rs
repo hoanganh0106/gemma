@@ -2,7 +2,7 @@
 //! f8e4m3: an f8 x f8 contraction needs no decode table and runs ~3.5x faster on the device.
 use furiosa_opt_std::prelude::*;
 
-use super::{Rep16, Ring16};
+use super::{Rep16, Ring16, Term};
 use crate::axes::H;
 use crate::{Chip, EPS};
 
@@ -12,10 +12,7 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
     ctx: &mut Context,
     x: &HbmTensor<bf16, Chip, m![H]>,
     rms_weight: &HbmTensor<bf16, Chip, m![H]>,
-) -> (
-    DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![H]>,
-    DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![H]>,
-) {
+) -> XTerms<Cluster> {
     let x: DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = x.to_dm(&mut ctx.tdma);
 
     let mean_square: DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![1 # 8]> = ctx
@@ -125,22 +122,32 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
         .commit_trim::<m![H % 8]>()
         .commit();
 
-    let q1 = gather_f8(ctx, &normalized);
-    let q2 = gather_f8(ctx, &residual);
-    (q1, q2)
+    let mut terms: XTerms<Cluster> = DmTensor::new();
+    gather_f8(ctx, &normalized, &mut terms, 0);
+    gather_f8(ctx, &residual, &mut terms, 1);
+    terms
 }
 
-/// All-gathers f32 pieces along each 16-slice ring and leaves them as f8e4m3 in every slice.
+/// Both f8 terms of the normalized hidden state, in every slice.
+pub(crate) type XTerms<Cluster> = DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![Term, H]>;
+
+/// All-gathers f32 pieces along each 16-slice ring and leaves them as f8e4m3 in every slice, as
+/// term `index` of `terms`. (An interleaved pair of DM tensors does NOT make a two-lane TRF: on
+/// the device only the first tensor arrived. One DM tensor with a real `Term` axis does.)
 fn gather_f8<Cluster: M>(
     ctx: &mut Context,
     pieces: &DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![H % 240]>,
-) -> DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![H]> {
+    terms: &mut XTerms<Cluster>,
+    index: usize,
+) {
+    let pieces: DmTensorView<'_, f32, Chip, Cluster, m![Rep16, H / 240], m![Term = 1, H % 240]> =
+        unsafe { pieces.view().reshape() };
     ctx.main
-        .begin(pieces.view())
-        .fetch::<m![1], m![H % 240]>()
-        .switch::<m![Rep16, Ring16], m![H / 240]>(SwitchConfig::Broadcast1 { slice1: 16, slice0: 1 })
-        .collect::<m![H / 8], m![H % 8]>()
+        .begin(pieces)
+        .fetch::<m![Term = 1], m![H % 240]>()
+        .switch::<m![Rep16, Ring16], m![Term = 1, H / 240]>(SwitchConfig::Broadcast1 { slice1: 16, slice0: 1 })
+        .collect::<m![Term = 1, H / 8], m![H % 8]>()
         .cast::<f8e4m3, m![H % 8 # 32]>()
         .commit_trim::<m![H % 8]>()
-        .commit()
+        .commit_view(terms.view_mut().tile::<m![Term], 1, m![Term = 1 #{!} 2, H]>(index));
 }

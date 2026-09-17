@@ -2,50 +2,74 @@
 use furiosa_opt_std::prelude::*;
 
 use crate::Chip;
-use super::{HeadCopyClusters, HeadCopySlices};
+use super::{HeadCopyClusters, HeadCopySlices, RopeTable};
 
 type Cluster = HeadCopyClusters;
 type Slice = HeadCopySlices;
 use crate::axes::{Ds, E, Gs};
 
-/// Runs per slice, one KV head to a slice, on the cluster that projected the head. The gather
-/// replicates the cos/sin row into every head slice of both clusters.
+/// The cos row and the sin row of this position, side by side, a real copy in every head slice.
+pub(crate) type RopeRows = DmTensor<bf16, Chip, Cluster, Slice, m![RopeTable, Ds]>;
+
+/// The cos and sin rows of this position, a real copy in every head slice of both clusters.
+///
+/// A `dma_gather` lands in ONE slice of cluster 0 whatever its type claims (device: a `Dummy2`
+/// cluster or replicated slices on the gather left cluster 1 / heads 1..3 with garbage), and
+/// `dm_cluster_shuffle` only lowers the swap `[1, 0]`. HBM is the one place both clusters can
+/// load real copies from, so the rows are parked there and loaded back into every head slice --
+/// both rows in one tensor, so there is one store, one ExplicitSync and one load.
+pub(crate) fn load_tables(
+    ctx: &mut Context,
+    rope_offset: &HbmTensor<i32, Chip, m![1]>,
+    cos: &HbmTensor<bf16, Chip, m![E, Ds]>,
+    sin: &HbmTensor<bf16, Chip, m![E, Ds]>,
+) -> RopeRows {
+    type One = DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable = 1, Ds]>;
+    let cos: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = cos.dma_gather_scaled(rope_offset);
+    let sin: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = sin.dma_gather_scaled(rope_offset);
+    let cos: One = unsafe { cos.reshape() };
+    let sin: One = unsafe { sin.reshape() };
+
+    let mut rows: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable, Ds]> = DmTensor::new();
+    ctx.sub
+        .begin(cos.view())
+        .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
+        .collect::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
+        .commit_trim::<m![Ds % 16]>()
+        .commit_view(rows.view_mut().tile::<m![RopeTable], 1, m![RopeTable = 1 #{!} 2, Ds]>(0));
+    ctx.sub
+        .begin(sin.view())
+        .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
+        .collect::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
+        .commit_trim::<m![Ds % 16]>()
+        .commit_view(rows.view_mut().tile::<m![RopeTable], 1, m![RopeTable = 1 #{!} 2, Ds]>(1));
+
+    let rows: HbmTensor<bf16, Chip, m![RopeTable, Ds]> = rows.to_hbm(&mut ctx.tdma);
+    rows.to_dm(&mut ctx.tdma)
+}
+
+/// Runs per slice, one KV head to a slice, on the cluster that projected the head.
 pub(crate) fn apply_rope(
     ctx: &mut Context,
     q: &DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]>,
     k: &DmTensor<bf16, Chip, Cluster, Slice, m![Ds]>,
-    rope_offset: &HbmTensor<i32, Chip, m![1]>,
-    cos: &HbmTensor<bf16, Chip, m![E, Ds]>,
-    sin: &HbmTensor<bf16, Chip, m![E, Ds]>,
+    rows: &RopeRows,
 ) -> (
     DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]>,
     DmTensor<bf16, Chip, Cluster, Slice, m![Ds]>,
 ) {
-    // The cos/sin row goes to padding-free pieces (a replicating load into a padded slice
-    // mapping only claims its copies); the pass that fills the VRF gathers them per head slice.
-    // The gather lands in ONE slice of cluster 0 whatever its type claims (device: a `Dummy2`
-    // cluster or replicated slices on the gather left cluster 1 / heads 1..3 with garbage), and
-    // `dm_cluster_shuffle` only lowers the swap `[1, 0]`. HBM is the one place both clusters can
-    // load real copies from, so the row is parked there and loaded back into every head slice.
-    let cos: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = cos.dma_gather_scaled(rope_offset);
-    let sin: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = sin.dma_gather_scaled(rope_offset);
-    let cos: HbmTensor<bf16, Chip, m![Ds]> = cos.to_hbm(&mut ctx.tdma);
-    let sin: HbmTensor<bf16, Chip, m![Ds]> = sin.to_hbm(&mut ctx.tdma);
-    let cos: DmTensor<bf16, Chip, Cluster, Slice, m![Ds]> = cos.to_dm(&mut ctx.tdma);
-    let sin: DmTensor<bf16, Chip, Cluster, Slice, m![Ds]> = sin.to_dm(&mut ctx.tdma);
-
     let cos_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
         .sub
-        .begin(cos.view())
-        .fetch::<m![Ds / 16], m![Ds % 16]>()
+        .begin(rows.view().tile::<m![RopeTable], 1, m![RopeTable = 1 # 2, Ds]>(0))
+        .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
         .to_vrf();
 
     let sin_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
         .sub
-        .begin(sin.view())
-        .fetch::<m![Ds / 16], m![Ds % 16]>()
+        .begin(rows.view().tile::<m![RopeTable], 1, m![RopeTable = 1 # 2, Ds]>(1))
+        .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
         .to_vrf();
