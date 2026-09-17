@@ -56,34 +56,34 @@ pub fn sliding_project_qkv(
     v_cache: &mut HbmTensor<bf16, Chip, m![Ts, Ns, Ds]>,
     q_out: &mut HbmTensor<bf16, Chip, m![Ns, Gs, Ds]>,
 ) {
-    // Both clusters normalize the same vector; each then projects half the output rows.
-    let x: DmTensor<bf16, Chip, layout::QueryClusters, Slice, m![H]> = x.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &x, input_rms_weight);
+    use crate::device::qkv;
 
-    // Quarter H across four slices, then fan those quarters out to the 64 row groups that
-    // contract them. Quarters are 960 bytes, which is flit-aligned; eighths were not.
-    let x: DmTensor<bf16, Chip, layout::QueryClusters, m![1 # 64, H / 960], m![H % 960]> =
-        x.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, layout::QueryClusters, layout::QkvColumns, m![H % 960]> =
-        layout::broadcast_qkv_hidden(ctx, &x);
+    // Normalize on 16 real copies of sixteen 240-element pieces, then all-gather: every one of
+    // the 256 slices of both clusters ends with a genuine copy of the whole normalized H.
+    let (x1, x2) = qkv::xnorm8::normalize_everywhere_f8::<layout::QueryClusters>(ctx, x, input_rms_weight);
+    let x1: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::proj::QueryRowSlices, m![H]> = unsafe { x1.reshape() };
+    let x2: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::proj::QueryRowSlices, m![H]> = unsafe { x2.reshape() };
 
-    let q_hbm: HbmTensor<bf16, Chip, m![Ns, Gs, Ds]> =
-        unsafe { sliding::projection::project_query(ctx, &x, q_weight, q_weight_scale).reshape() };
-    let (k_hbm, v_hbm) =
-        sliding::projection::project_key_value(ctx, &x, k_weight, v_weight, k_weight_scale, v_weight_scale);
-    let k_hbm: HbmTensor<bf16, Chip, m![Ns, Ds]> = unsafe { k_hbm.reshape() };
-    let v_hbm: HbmTensor<bf16, Chip, m![Ns, Ds]> = unsafe { v_hbm.reshape() };
+    // Each cluster keeps the four heads it projected, one head per slice, through the head
+    // norms and RoPE. The two halves meet only in HBM: q_out and the KV cache are chip-wide.
+    let q: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Gs, Ds]> =
+        qkv::proj8::project_query(ctx, &x1, &x2, q_weight, q_weight_scale);
+    let (k, v) = qkv::proj8::project_key_value(ctx, &x1, &x2, k_weight, v_weight, k_weight_scale, v_weight_scale);
 
-    let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> = q_hbm.to_dm(&mut ctx.tdma);
-    let k: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = k_hbm.to_dm(&mut ctx.tdma);
-    let v: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = v_hbm.to_dm(&mut ctx.tdma);
+    // Relabel to the axes the shared per-head tensors (norm weights, cos/sin) are copied over.
+    let q: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Gs, Ds]> = unsafe { q.reshape() };
+    let k: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Ds]> = unsafe { k.reshape() };
+    let v: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Ds]> = unsafe { v.reshape() };
 
-    let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> =
-        sliding::rmsnorm::normalize_query(ctx, &q, q_rms_weight);
-    let k: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = sliding::rmsnorm::normalize_key(ctx, &k, k_rms_weight);
-    let v: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = sliding::rmsnorm::normalize_value(ctx, &v);
+    let q = qkv::headnorm::normalize_query(ctx, &q, q_rms_weight);
+    let k = qkv::headnorm::normalize_key(ctx, &k, k_rms_weight);
+    let v = qkv::headnorm::normalize_value(ctx, &v);
 
-    let (q, k) = sliding::rope::apply_rope(ctx, &q, &k, rope_offset, cos, sin);
+    let (q, k) = qkv::rope::apply_rope(ctx, &q, &k, rope_offset, cos, sin);
+
+    let q: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Gs, Ds]> = unsafe { q.reshape() };
+    let k: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Ds]> = unsafe { k.reshape() };
+    let v: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Ds]> = unsafe { v.reshape() };
 
     q.view().to_hbm_view(&mut ctx.tdma, q_out.view_mut());
     k.dma_scatter::<m![1], _, _>(kv_offset, k_cache);
@@ -158,17 +158,7 @@ pub fn sliding_attention_output(
     let x: DmTensor<bf16, Chip, layout::OutputClusters, layout::SlidingOutputColumns, m![Qs % 256]> =
         unsafe { x.reshape() };
 
-    let projected: HbmTensor<bf16, Chip, m![H]> =
-        sliding::projection::project_output(ctx, &x, o_weight, o_weight_scale);
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = projected.to_dm(&mut ctx.tdma);
-    // Stay divided over eight slices to the end: the write target is HBM, which does not care.
-    let x: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
-        shared::rmsnorm::normalize_spread(ctx, &x, post_attn_rms_weight);
-
-    let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
-        residual_hbm.to_dm(&mut ctx.tdma);
-    let residual = shared::residual::add_spread(ctx, &x, &residual);
-    residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
+    sliding::output::project_normalize_add(ctx, &x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
 }
 
 #[device(chip = 1)]
@@ -241,18 +231,12 @@ pub fn decoder_feedforward(
     post_ff_rms_weight: &HbmTensor<bf16, Chip, m![H]>,
     layer_scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
 ) {
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &residual, pre_ff_rms_weight);
-
-    // Park the normalized vector in HBM (7.5 KB) and load it back with each of the 128 row
-    // groups taking the half of H it contracts. Replicating it from DM needed the Switch ring,
-    // which cost 31,495 cycles of MainContext; from HBM the DMA engine does it.
-    let x: HbmTensor<bf16, Chip, m![H]> = x.to_hbm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, shared::mlp::UpGateColumns, m![H % 1920]> =
-        x.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::mlp::feedforward(
+    // RMSNorm on real copies of the pieces, two exact f8 terms, all-gathered into every slice;
+    // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn3.rs).
+    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::ffn3::feedforward(
         ctx,
-        x,
+        &*residual_hbm,
+        pre_ff_rms_weight,
         up_weight_packed,
         gate_weight_packed,
         down_weight_packed,
