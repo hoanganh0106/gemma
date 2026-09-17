@@ -58,6 +58,10 @@ pub fn sliding_project_qkv(
 ) {
     use crate::device::qkv::{self, Term};
 
+    // Every small load (row scales, head-norm weights, the parked RoPE rows) is a tile of ONE pool
+    // tensor: tile writes are chained in program order, so the DMA queue holds them in front of
+    // and between the weights with no tensor-unit pass to wait for, and the three weight loads
+    // run back to back. The RoPE hop's host sync hides under the first weight load.
     let rope_rows = qkv::rope::load_tables(ctx, rope_offset, cos, sin);
     let pool = qkv::pool::load(ctx, q_weight_scale, k_weight_scale, v_weight_scale, q_rms_weight, k_rms_weight, &rope_rows);
     let q_scale = qkv::pool::vrf2(ctx, &pool, qkv::pool::Q_SCALE);
@@ -156,7 +160,7 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    sliding::output::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
+    sliding::output2::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
 }
 
 #[device(chip = 1)]
@@ -231,7 +235,7 @@ pub fn decoder_feedforward(
 ) {
     // RMSNorm on real copies of the pieces, two exact f8 terms, all-gathered into every slice;
     // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn4.rs).
-    let x: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> = shared::ffn5::feedforward(
+    let (x, residual_spread) = shared::ffn6::feedforward(
         ctx,
         &*residual_hbm,
         pre_ff_rms_weight,
@@ -248,7 +252,7 @@ pub fn decoder_feedforward(
 
     // Stay divided over eight slices to the end, and do the add and the gate in one pass.
     let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
-        shared::ffn5::normalize_add_gate_in_place(ctx, &x, post_ff_rms_weight, &*residual_hbm, layer_scalar);
+        shared::ffn6::normalize_add_gate_in_place(ctx, &x, post_ff_rms_weight, &residual_spread, layer_scalar);
     residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
 

@@ -1,6 +1,7 @@
 //! f8 x f8 contractions: no decode table, ~3.5x faster on the device than table-fused f8 -> bf16.
-//! Q/K/V projections with WHOLE weight rows per slice (one contiguous HBM run per slice, no
-//! inter-slice reduce), gathered per KV head on the Switch network. The heads stay on the
+//! Q/K/V projections with WHOLE weight rows per slice (no inter-slice reduce), the rows strided
+//! over the slices for a faster DMA (see `super::QueryRowSlices`), sorted back with one
+//! `InterTranspose` pass and gathered per KV head on the Switch network. The heads stay on the
 //! cluster that projected them: no DMA gather, no HBM round trip.
 use furiosa_opt_std::prelude::*;
 
