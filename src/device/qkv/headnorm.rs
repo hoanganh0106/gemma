@@ -17,7 +17,7 @@ const DS_F32: f32 = Ds::SIZE as f32;
 pub(crate) fn normalize_query(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]>,
-    rms_weight: &DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
+    weight_vrf: &super::pool::Vrf1,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]> {
     let mean_square: DmTensor<f32, Chip, Cluster, Slice, m![Gs, 1 # 8]> = ctx
         .main
@@ -52,8 +52,6 @@ pub(crate) fn normalize_query(
         .commit_trim::<m![1 # 8]>()
         .commit();
 
-    let weight_vrf = load_norm_weight(ctx, rms_weight);
-
     let rms_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Gs, 1 # 8]> = ctx
         .sub
         .begin(rms.view())
@@ -70,7 +68,7 @@ pub(crate) fn normalize_query(
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_split::<m![Gs, Ds / 4], m![Ds % 4]>()
         .vector_fp_binary(FpBinaryOp::DivF, &rms_vrf)
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &weight_vrf)
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), weight_vrf)
         .vector_widen_concat::<m![Gs, Ds / 8], m![Ds % 8]>()
         .vector_final()
         .cast::<bf16, m![Ds % 8 # 16]>()
@@ -78,22 +76,6 @@ pub(crate) fn normalize_query(
         .commit()
 }
 
-/// The `Ds` norm weight, a real copy in every head slice of both clusters: an HBM load replicates
-/// for real over axes absent from the source (`Dummy2` clusters, `HeadCopy4` strided slices) --
-/// device-verified. (A `dma_gather` into the same type does NOT; see `rope`.)
-fn load_norm_weight(
-    ctx: &mut Context,
-    rms_weight: &DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
-) -> VrfTensor<f32, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> {
-    let weight_dm = rms_weight;
-
-    ctx.sub
-        .begin(weight_dm.view())
-        .fetch::<m![Ds / 16], m![Ds % 16]>()
-        .fetch_cast::<f32>()
-        .collect::<m![Ds / 8], m![Ds % 8]>()
-        .to_vrf()
-}
 
 fn root_mean_square(
     ctx: &mut Context,
@@ -142,10 +124,9 @@ fn root_mean_square(
 pub(crate) fn normalize_key(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![Ds]>,
-    rms_weight: &DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
+    weight_vrf: &super::pool::Vrf1,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![Ds]> {
     let rms_vrf = root_mean_square(ctx, x);
-    let weight_vrf = load_norm_weight(ctx, rms_weight);
 
     ctx.main
         .begin(x.view())
@@ -156,7 +137,7 @@ pub(crate) fn normalize_key(
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_split::<m![Ds / 4], m![Ds % 4]>()
         .vector_fp_binary(FpBinaryOp::DivF, &rms_vrf)
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &weight_vrf)
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), weight_vrf)
         .vector_widen_concat::<m![Ds / 8], m![Ds % 8]>()
         .vector_final()
         .cast::<bf16, m![Ds % 8 # 16]>()

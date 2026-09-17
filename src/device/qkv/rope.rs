@@ -2,7 +2,7 @@
 use furiosa_opt_std::prelude::*;
 
 use crate::Chip;
-use super::{HeadCopyClusters, HeadCopySlices, RopeTable};
+use super::{HeadCopyClusters, HeadCopySlices, Pool, RopeTable};
 
 type Cluster = HeadCopyClusters;
 type Slice = HeadCopySlices;
@@ -23,15 +23,14 @@ pub(crate) fn load_tables(
     rope_offset: &HbmTensor<i32, Chip, m![1]>,
     cos: &HbmTensor<bf16, Chip, m![E, Ds]>,
     sin: &HbmTensor<bf16, Chip, m![E, Ds]>,
-    rows: &mut DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable, Ds]>,
-    out: &mut RopeRows,
-) {
+) -> HbmTensor<bf16, Chip, m![RopeTable, Ds]> {
     type One = DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable = 1, Ds]>;
     let cos: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = cos.dma_gather_scaled(rope_offset);
     let sin: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = sin.dma_gather_scaled(rope_offset);
     let cos: One = unsafe { cos.reshape() };
     let sin: One = unsafe { sin.reshape() };
 
+    let mut rows: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable, Ds]> = DmTensor::new();
     ctx.sub
         .begin(cos.view())
         .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
@@ -45,8 +44,7 @@ pub(crate) fn load_tables(
         .commit_trim::<m![Ds % 16]>()
         .commit_view(rows.view_mut().tile::<m![RopeTable], 1, m![RopeTable = 1 #{!} 2, Ds]>(1));
 
-    let rows: HbmTensor<bf16, Chip, m![RopeTable, Ds]> = rows.to_hbm(&mut ctx.tdma);
-    rows.view().to_dm_view(&mut ctx.tdma, out.view_mut());
+    rows.to_hbm(&mut ctx.tdma)
 }
 
 /// Runs per slice, one KV head to a slice, on the cluster that projected the head.
@@ -54,23 +52,23 @@ pub(crate) fn apply_rope(
     ctx: &mut Context,
     q: &DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]>,
     k: &DmTensor<bf16, Chip, Cluster, Slice, m![Ds]>,
-    rows: &RopeRows,
+    pool: &super::pool::SmallPool,
 ) -> (
     DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]>,
     DmTensor<bf16, Chip, Cluster, Slice, m![Ds]>,
 ) {
     let cos_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
         .sub
-        .begin(rows.view().tile::<m![RopeTable], 1, m![RopeTable = 1 # 2, Ds]>(0))
-        .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
+        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 8, Ds]>(super::pool::ROPE))
+        .fetch::<m![Pool = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
         .to_vrf();
 
     let sin_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
         .sub
-        .begin(rows.view().tile::<m![RopeTable], 1, m![RopeTable = 1 # 2, Ds]>(1))
-        .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
+        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 8, Ds]>(super::pool::ROPE + 1))
+        .fetch::<m![Pool = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
         .to_vrf();

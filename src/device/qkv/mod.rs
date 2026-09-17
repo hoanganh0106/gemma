@@ -6,15 +6,16 @@ use furiosa_opt_std::prelude::*;
 use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
 
 pub(crate) mod headnorm;
+pub(crate) mod pool;
 pub(crate) mod proj8;
 pub(crate) mod rope;
 pub(crate) mod xnorm8;
 
-axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2];
+axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2, Wx2 = 2, Pool = 8];
 
 /// Whole weight rows per slice: 8 Q rows, or 4 K/V rows, in one contiguous HBM run.
-pub(crate) type QueryRowSlices = m![Qs / 8 % 256];
-pub(crate) type KeyValueRowSlices = m![Ps / 4 % 256];
+pub(crate) type QueryRowSlices = m![Ns % 4, Gs, Ds / 64, Ds % 8];
+pub(crate) type KeyValueRowSlices = m![Ns % 4, Ds / 16, Ds % 4];
 
 /// The two clusters named by KV head: cluster 0 owns heads 0..3, cluster 1 heads 4..7.
 /// `Qs = Ns*Gs*Ds` and `Ps = Ns*Ds` row-major, so `Qs / 2048 == Ps / 1024 == Ns / 4`.
