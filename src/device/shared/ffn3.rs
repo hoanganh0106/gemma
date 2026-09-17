@@ -168,32 +168,34 @@ fn normalize_quantize(
         .to_trf()
 }
 
-/// A whole up or gate matrix in one pass (one decode table): per-block partial sums out, the two
-/// activation terms already added.
+/// A third of an up or gate matrix (10 whole rows a slice: even row counts stay 256-byte aligned) in one pass, one decode table: per-block
+/// partial sums out, the two activation terms already added.
 macro_rules! block_sums {
-    ($ctx:ident, $w:ident, $x_trf:ident) => {{
-        let packed: DmTensor<f4e2m1, Chip, UpGateClusters, RowSlices, m![L % 30, H]> = $w.to_dm(&mut $ctx.tdma);
-        let packed: DmTensor<f4e2m1, Chip, UpGateClusters, Gathered, m![L % 30, Xh]> = unsafe { packed.reshape() };
-        let z: DmTensor<f32, Chip, UpGateClusters, Gathered, m![L % 30, Xh / 16]> = $ctx
-            .main
+    ($ctx:ident, $w:ident, $x_trf:ident, $z:ident, $start:literal) => {{
+        let packed: DmTensor<f4e2m1, Chip, UpGateClusters, RowSlices, m![L % 30 = 10, H]> = $w
+            .view()
+            .tile::<m![L % 30], 10, m![L / 30, L % 30 = 10 # 30, H]>($start)
+            .to_dm(&mut $ctx.tdma);
+        let packed: DmTensor<f4e2m1, Chip, UpGateClusters, Gathered, m![L % 30 = 10, Xh]> =
+            unsafe { packed.reshape() };
+        $ctx.main
             .begin(packed.view())
-            .fetch::<m![L % 30], m![Xh]>()
+            .fetch::<m![L % 30 = 10], m![Xh]>()
             .fetch_table_lookup::<f8e4m3>()
-            .collect::<m![L % 30, Xh / 32], m![Xh % 32]>()
-            .contract_outer::<m![L % 30, Xh / 64], m![Xh % 64], _, _, _>(&$x_trf)
+            .collect::<m![L % 30 = 10, Xh / 32], m![Xh % 32]>()
+            .contract_outer::<m![L % 30 = 10, Xh / 64], m![Xh % 64], _, _, _>(&$x_trf)
             .contract_packet::<m![Xh / 16 % 4]>()
-            .contract_time::<m![L % 30, Xh / 64]>()
-            .contract_lane::<m![L % 30, Xh / 64, T2], m![Xh / 16 % 4 # 8]>(LaneMode::Sequential)
+            .contract_time::<m![L % 30 = 10, Xh / 64]>()
+            .contract_lane::<m![L % 30 = 10, Xh / 64, T2], m![Xh / 16 % 4 # 8]>(LaneMode::Sequential)
             .vector_init()
             .vector_intra_slice_tag(TagMode::Zero)
             .vector_narrow_trim::<m![Xh / 16 % 4]>()
-            .vector_intra_slice_reduce::<T2, m![L % 30, Xh / 64], m![Xh / 16 % 4]>(IntraSliceReduceOpF32::Add)
+            .vector_intra_slice_reduce::<T2, m![L % 30 = 10, Xh / 64], m![Xh / 16 % 4]>(IntraSliceReduceOpF32::Add)
             .vector_fp_div(UP_GAIN)
             .vector_widen_pad::<m![Xh / 16 % 4 # 8]>()
             .vector_final()
             .commit_trim::<m![Xh / 16 % 4]>()
-            .commit();
-        z
+            .commit_view($z.view_mut().tile::<m![L % 30], 10, m![L % 30 = 10 #{!} 30, Xh / 16]>($start));
     }};
 }
 
@@ -221,23 +223,6 @@ macro_rules! scale_tile {
             .transpose::<m![L % 30 = 6 / 2], m![L % 30 = 6 % 2 # 8]>()
             .commit_trim::<m![L % 30 = 6 % 2]>()
             .commit_view($out.view_mut().tile::<m![L % 30], 6, m![L % 30 = 6 #{!} 30]>($start));
-    }};
-}
-
-macro_rules! scale_and_sum {
-    ($ctx:ident, $z:ident, $scale:ident) => {{
-        let scale: DmTensor<f8e4m3, Chip, UpGateClusters, RowSlices, m![L % 30, H / 16]> =
-            $scale.to_dm(&mut $ctx.tdma);
-        let scale: DmTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![L % 30, Xh / 16]> =
-            unsafe { scale.reshape() };
-        let mut y: DmTensor<f32, Chip, UpGateClusters, Gathered, m![L % 30]> = DmTensor::new();
-        scale_tile!($ctx, $z, scale, y, 0);
-        scale_tile!($ctx, $z, scale, y, 6);
-        scale_tile!($ctx, $z, scale, y, 12);
-        scale_tile!($ctx, $z, scale, y, 18);
-        scale_tile!($ctx, $z, scale, y, 24);
-        let y: DmTensor<f32, Chip, UpGateClusters, RowSlices, m![L % 30]> = unsafe { y.reshape() };
-        y
     }};
 }
 
@@ -424,10 +409,40 @@ pub(crate) fn feedforward(
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
     let x_trf = normalize_quantize(ctx, residual, pre_ff_rms_weight);
 
-    let up = block_sums!(ctx, up_weight_packed, x_trf);
-    let up = scale_and_sum!(ctx, up, up_weight_scale);
-    let gate = block_sums!(ctx, gate_weight_packed, x_trf);
-    let gate = scale_and_sum!(ctx, gate, gate_weight_scale);
+    let up_scale: DmTensor<f8e4m3, Chip, UpGateClusters, RowSlices, m![L % 30, H / 16]> =
+        up_weight_scale.to_dm(&mut ctx.tdma);
+    let up_scale: DmTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![L % 30, Xh / 16]> =
+        unsafe { up_scale.reshape() };
+    let gate_scale: DmTensor<f8e4m3, Chip, UpGateClusters, RowSlices, m![L % 30, H / 16]> =
+        gate_weight_scale.to_dm(&mut ctx.tdma);
+    let gate_scale: DmTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![L % 30, Xh / 16]> =
+        unsafe { gate_scale.reshape() };
+
+    let mut up_z: DmTensor<f32, Chip, UpGateClusters, Gathered, m![L % 30, Xh / 16]> = DmTensor::new();
+    let mut gate_z: DmTensor<f32, Chip, UpGateClusters, Gathered, m![L % 30, Xh / 16]> = DmTensor::new();
+    let mut up: DmTensor<f32, Chip, UpGateClusters, Gathered, m![L % 30]> = DmTensor::new();
+    let mut gate: DmTensor<f32, Chip, UpGateClusters, Gathered, m![L % 30]> = DmTensor::new();
+
+    block_sums!(ctx, up_weight_packed, x_trf, up_z, 0);
+    block_sums!(ctx, gate_weight_packed, x_trf, gate_z, 0);
+    block_sums!(ctx, up_weight_packed, x_trf, up_z, 10);
+    block_sums!(ctx, gate_weight_packed, x_trf, gate_z, 10);
+    block_sums!(ctx, up_weight_packed, x_trf, up_z, 20);
+    block_sums!(ctx, gate_weight_packed, x_trf, gate_z, 20);
+
+    scale_tile!(ctx, up_z, up_scale, up, 0);
+    scale_tile!(ctx, gate_z, gate_scale, gate, 0);
+    scale_tile!(ctx, up_z, up_scale, up, 6);
+    scale_tile!(ctx, gate_z, gate_scale, gate, 6);
+    scale_tile!(ctx, up_z, up_scale, up, 12);
+    scale_tile!(ctx, gate_z, gate_scale, gate, 12);
+    scale_tile!(ctx, up_z, up_scale, up, 18);
+    scale_tile!(ctx, up_z, up_scale, up, 24);
+    scale_tile!(ctx, gate_z, gate_scale, gate, 18);
+    scale_tile!(ctx, gate_z, gate_scale, gate, 24);
+
+    let up: DmTensor<f32, Chip, UpGateClusters, RowSlices, m![L % 30]> = unsafe { up.reshape() };
+    let gate: DmTensor<f32, Chip, UpGateClusters, RowSlices, m![L % 30]> = unsafe { gate.reshape() };
 
     let up = regroup(ctx, &up, up_global_scale);
     let gate = regroup(ctx, &gate, gate_global_scale);

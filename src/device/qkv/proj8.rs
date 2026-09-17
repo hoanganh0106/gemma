@@ -1,15 +1,14 @@
-//! f8 x f8 variant of `proj` (no decode table).
+//! f8 x f8 contractions: no decode table, ~3.5x faster on the device than table-fused f8 -> bf16.
 //! Q/K/V projections with WHOLE weight rows per slice (one contiguous HBM run per slice, no
 //! inter-slice reduce), gathered per KV head on the Switch network. The heads stay on the
 //! cluster that projected them: no DMA gather, no HBM round trip.
 use furiosa_opt_std::prelude::*;
 
-use super::{HeadClusters, HeadSlices, KvRowsByHead, QueryRowsByHead, Term};
+use super::{HeadClusters, HeadSlices, KeyValueRowSlices, KvRowsByHead, QueryRowSlices, QueryRowsByHead, Term};
 use crate::Chip;
 use crate::axes::{Ds, Gs, H, Ns, Ps, Qs};
 use crate::device::layout::{KeyValueClusters, QueryClusters};
 
-use super::proj::{KeyValueRowSlices, QueryRowSlices};
 
 pub(crate) fn project_query(
     ctx: &mut Context,

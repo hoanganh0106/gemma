@@ -3,17 +3,18 @@
 //! RoPE done per KV head on the cluster that projected the head.
 use furiosa_opt_std::prelude::*;
 
-
-use crate::axes::{Ds, Dummy2, Gs, Ns};
+use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
 
 pub(crate) mod headnorm;
-pub(crate) mod proj;
 pub(crate) mod proj8;
 pub(crate) mod rope;
-pub(crate) mod xnorm;
 pub(crate) mod xnorm8;
 
-axes![Rep16 = 16, Ring4 = 4, Ring8 = 8, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2];
+axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2];
+
+/// Whole weight rows per slice: 8 Q rows, or 4 K/V rows, in one contiguous HBM run.
+pub(crate) type QueryRowSlices = m![Qs / 8 % 256];
+pub(crate) type KeyValueRowSlices = m![Ps / 4 % 256];
 
 /// The two clusters named by KV head: cluster 0 owns heads 0..3, cluster 1 heads 4..7.
 /// `Qs = Ns*Gs*Ds` and `Ps = Ns*Ds` row-major, so `Qs / 2048 == Ps / 1024 == Ns / 4`.
@@ -31,6 +32,7 @@ pub(crate) type HeadCopyClusters = m![Dummy2];
 pub(crate) type HeadCopySlices = m![HeadCopy4, 1 # 64];
 
 /// The normalized hidden state is multiplied by this power of two before it is split into f8
-/// terms (and the projections divided by it again): it lifts the residual term x - f8(x), about
-/// |x| / 16 .. |x| / 256, out of f8e4m3's subnormal range, where the device flushed it to zero.
+/// terms, and the projections divided by it again (both exact). It lifts the residual term
+/// x - f8(x), which is |x| / 16 .. |x| / 256, out of f8e4m3's subnormal range (below 2^-6) for
+/// |x| around 1; |x| up to 448 / 8 = 56 still fits the first term.
 pub(crate) const X_PRESCALE: f32 = 8.0;

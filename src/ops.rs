@@ -63,7 +63,7 @@ pub fn sliding_project_qkv(
     // Normalize on 16 real copies of sixteen 240-element pieces, then all-gather: every one of
     // the 256 slices of both clusters ends with a genuine copy of the whole normalized H.
     let x = qkv::xnorm8::normalize_everywhere_f8::<layout::QueryClusters>(ctx, x, input_rms_weight);
-    let x: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::proj::QueryRowSlices, m![Term, H]> =
+    let x: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::QueryRowSlices, m![Term, H]> =
         unsafe { x.reshape() };
 
     // Each cluster keeps the four heads it projected, one head per slice, through the head
@@ -227,8 +227,8 @@ pub fn decoder_feedforward(
     layer_scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
 ) {
     // RMSNorm on real copies of the pieces, two exact f8 terms, all-gathered into every slice;
-    // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn3.rs).
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::ffn3::feedforward(
+    // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn4.rs).
+    let x: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> = shared::ffn4::feedforward(
         ctx,
         &*residual_hbm,
         pre_ff_rms_weight,
@@ -245,7 +245,7 @@ pub fn decoder_feedforward(
 
     // Stay divided over eight slices to the end, and do the add and the gate in one pass.
     let x: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
-        shared::rmsnorm::normalize_spread(ctx, &x, post_ff_rms_weight);
+        shared::ffn4::normalize_spread_in_place(ctx, &x, post_ff_rms_weight);
     let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
         residual_hbm.to_dm(&mut ctx.tdma);
     let residual = shared::residual::add_spread(ctx, &x, &residual);

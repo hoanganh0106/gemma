@@ -1,5 +1,10 @@
-//! The input RMSNorm on replicated pieces (see `xnorm`), all-gathered into every slice as
-//! f8e4m3: an f8 x f8 contraction needs no decode table and runs ~3.5x faster on the device.
+//! The input RMSNorm on genuinely replicated 240-element pieces, all-gathered into every slice.
+//!
+//! The hidden state is loaded as 16 pieces of 240 elements, 16 real copies of each (`Rep16` is a
+//! real axis, not `1 # 16`), so all 256 slices of a cluster hold live data from the first load on.
+//! Each group of 16 slices normalizes the whole vector on its own. The result is split into two
+//! exact f8e4m3 terms and each is gathered along the ring with `Broadcast1`: an f8 x f8
+//! contraction needs no decode table and runs ~3.5x faster on the device than f8 -> bf16.
 use furiosa_opt_std::prelude::*;
 
 use super::{Rep16, Ring16, Term};
