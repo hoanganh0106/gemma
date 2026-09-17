@@ -236,15 +236,14 @@ pub fn decoder_feedforward(
     layer_scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
 ) {
     let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
+    let x = shared::rmsnorm::normalize(ctx, &residual, pre_ff_rms_weight);
 
-    // Both clusters normalize the same vector; each then projects half of L.
-    let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &x, pre_ff_rms_weight);
-
-    let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, m![1 # 128, H / 1920], m![H % 1920]> =
-        x.to_dm(&mut ctx.tdma);
+    // Park the normalized vector in HBM (7.5 KB) and load it back with each of the 128 row
+    // groups taking the half of H it contracts. Replicating it from DM needed the Switch ring,
+    // which cost 31,495 cycles of MainContext; from HBM the DMA engine does it.
+    let x: HbmTensor<bf16, Chip, m![H]> = x.to_hbm(&mut ctx.tdma);
     let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, shared::mlp::UpGateColumns, m![H % 1920]> =
-        layout::broadcast_feedforward_hidden(ctx, &x);
+        x.to_dm(&mut ctx.tdma);
     let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::mlp::feedforward(
         ctx,
         x,

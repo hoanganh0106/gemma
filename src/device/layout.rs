@@ -9,21 +9,6 @@ pub(crate) type Slice = m![1 # 256];
 
 pub(crate) type Replicated = m![Dummy256];
 
-/// Hands each of the feed-forward's 128 row groups the half of the hidden state it
-/// contracts. The DMA engine splits H across two slices; replicating those halves across the
-/// row groups is the Switch Engine's job, because one transfer cannot do both.
-pub(crate) fn broadcast_feedforward_hidden<Cluster: M>(
-    ctx: &mut Context,
-    x: &DmTensor<bf16, Chip, Cluster, m![1 # 128, H / 1920], m![H % 1920]>,
-) -> DmTensor<bf16, Chip, Cluster, m![L / 60 % 128, H / 1920], m![H % 1920]> {
-    ctx.main
-        .begin(x.view())
-        .fetch::<m![1], m![H % 1920]>()
-        .switch::<m![L / 60 % 128, H / 1920], m![1]>(SwitchConfig::CustomBroadcast { ring_size: 256 })
-        .collect::<m![H / 16 % 120], m![H % 16]>()
-        .commit_trim::<m![H % 16]>()
-        .commit()
-}
 
 /// The output projection's rows split over the chip's two clusters: cluster 0 owns rows
 /// 0..1919, cluster 1 owns 1920..3839. The clusters load from HBM on separate paths, so each
