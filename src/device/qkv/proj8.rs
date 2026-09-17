@@ -13,21 +13,18 @@ use crate::device::layout::{KeyValueClusters, QueryClusters};
 pub(crate) fn project_query(
     ctx: &mut Context,
     x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
-    weight: &HbmTensor<f8e4m3, Chip, m![Qs, H]>,
-    weight_scale: &HbmTensor<bf16, Chip, m![Qs]>,
+    weight_f8: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Qs % 8, H]>,
+    weight_scale: &DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Gs, Ds]>,
 ) -> DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Gs, Ds]> {
     let x_trf = query_operand(ctx, x);
 
-    let weight_f8: DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Qs % 8, H]> = weight.to_dm(&mut ctx.tdma);
 
-    let contraction = contract_query(ctx, &weight_f8, &x_trf);
+    let contraction = contract_query(ctx, weight_f8, &x_trf);
     // Relabel only: Qs = (Ns, Gs, Ds) row-major, so cluster Qs/2048 is Ns/4, slice Qs/8%256 is
     // (Ns%4, Gs, Ds/8) and the in-slice Qs%8 is Ds%8. Same physical order.
     let contraction: DmTensor<bf16, Chip, HeadClusters, QueryRowsByHead, m![Ds % 8]> =
         unsafe { contraction.reshape() };
 
-    let weight_scale: HbmTensorView<'_, bf16, Chip, m![Ns, Gs, Ds]> = unsafe { weight_scale.view().reshape() };
-    let weight_scale: DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Gs, Ds]> = weight_scale.to_dm(&mut ctx.tdma);
     let weight_scale_vrf: VrfTensor<f32, Chip, HeadClusters, HeadSlices, m![Gs, Ds]> = ctx
         .sub
         .begin(weight_scale.view())
@@ -58,18 +55,14 @@ pub(crate) fn project_query(
 fn project_one_kv_matrix(
     ctx: &mut Context,
     x_trf: &KvOperand,
-    weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
-    weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    weight_f8: &DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4, H]>,
+    weight_scale: &DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,
 ) -> DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]> {
-    let weight_f8: DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4, H]> =
-        weight.to_dm(&mut ctx.tdma);
 
-    let contraction = contract_key_value(ctx, &weight_f8, x_trf);
+    let contraction = contract_key_value(ctx, weight_f8, x_trf);
     // Relabel only: Ps = (Ns, Ds) row-major: cluster Ns/4, slice (Ns%4, Ds/4), in-slice Ds%4.
     let contraction: DmTensor<bf16, Chip, HeadClusters, KvRowsByHead, m![Ds % 4]> = unsafe { contraction.reshape() };
 
-    let weight_scale: HbmTensorView<'_, bf16, Chip, m![Ns, Ds]> = unsafe { weight_scale.view().reshape() };
-    let weight_scale: DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]> = weight_scale.to_dm(&mut ctx.tdma);
     let weight_scale_vrf: VrfTensor<f32, Chip, HeadClusters, HeadSlices, m![Ds]> = ctx
         .sub
         .begin(weight_scale.view())
@@ -99,10 +92,10 @@ fn project_one_kv_matrix(
 pub(crate) fn project_key_value(
     ctx: &mut Context,
     x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
-    k_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
-    v_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
-    k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
-    v_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    k_weight: &DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4, H]>,
+    v_weight: &DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ps % 4, H]>,
+    k_weight_scale: &DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,
+    v_weight_scale: &DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,
 ) -> (
     DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,
     DmTensor<bf16, Chip, HeadClusters, HeadSlices, m![Ds]>,

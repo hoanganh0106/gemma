@@ -17,7 +17,7 @@ const DS_F32: f32 = Ds::SIZE as f32;
 pub(crate) fn normalize_query(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]>,
-    rms_weight: &HbmTensor<bf16, Chip, m![Ds]>,
+    rms_weight: &DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]> {
     let mean_square: DmTensor<f32, Chip, Cluster, Slice, m![Gs, 1 # 8]> = ctx
         .main
@@ -83,9 +83,9 @@ pub(crate) fn normalize_query(
 /// device-verified. (A `dma_gather` into the same type does NOT; see `rope`.)
 fn load_norm_weight(
     ctx: &mut Context,
-    rms_weight: &HbmTensor<bf16, Chip, m![Ds]>,
+    rms_weight: &DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
 ) -> VrfTensor<f32, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> {
-    let weight_dm: DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> = rms_weight.to_dm(&mut ctx.tdma);
+    let weight_dm = rms_weight;
 
     ctx.sub
         .begin(weight_dm.view())
@@ -142,7 +142,7 @@ fn root_mean_square(
 pub(crate) fn normalize_key(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![Ds]>,
-    rms_weight: &HbmTensor<bf16, Chip, m![Ds]>,
+    rms_weight: &DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![Ds]> {
     let rms_vrf = root_mean_square(ctx, x);
     let weight_vrf = load_norm_weight(ctx, rms_weight);

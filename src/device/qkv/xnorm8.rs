@@ -15,10 +15,10 @@ const H_F32: f32 = H::SIZE as f32;
 
 pub(crate) fn normalize_everywhere_f8<Cluster: M>(
     ctx: &mut Context,
-    x: &HbmTensor<bf16, Chip, m![H]>,
-    rms_weight: &HbmTensor<bf16, Chip, m![H]>,
-) -> XTerms<Cluster> {
-    let x: DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = x.to_dm(&mut ctx.tdma);
+    x: &DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]>,
+    rms_weight: &DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]>,
+    terms: &mut XTerms<Cluster>,
+) {
 
     let mean_square: DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![1 # 8]> = ctx
         .main
@@ -64,7 +64,7 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
         .commit();
     let rms: DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![1 # 8]> = unsafe { rms.reshape() };
 
-    let weight_dm: DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = rms_weight.to_dm(&mut ctx.tdma);
+    let weight_dm = rms_weight;
     let weight_vrf: VrfTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = ctx
         .sub
         .begin(weight_dm.view())
@@ -127,11 +127,12 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
         .commit_trim::<m![H % 8]>()
         .commit();
 
-    let mut terms: XTerms<Cluster> = DmTensor::new();
-    gather_f8(ctx, &normalized, &mut terms, 0);
-    gather_f8(ctx, &residual, &mut terms, 1);
-    terms
+    gather_f8(ctx, &normalized, terms, 0);
+    gather_f8(ctx, &residual, terms, 1);
 }
+
+/// H as sixteen 240-element pieces, 16 real copies of each: live data in all 256 slices.
+pub(crate) type XPieces<Cluster> = DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]>;
 
 /// Both f8 terms of the normalized hidden state, in every slice.
 pub(crate) type XTerms<Cluster> = DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![Term, H]>;

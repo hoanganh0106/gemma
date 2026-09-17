@@ -23,14 +23,15 @@ pub(crate) fn load_tables(
     rope_offset: &HbmTensor<i32, Chip, m![1]>,
     cos: &HbmTensor<bf16, Chip, m![E, Ds]>,
     sin: &HbmTensor<bf16, Chip, m![E, Ds]>,
-) -> RopeRows {
+    rows: &mut DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable, Ds]>,
+    out: &mut RopeRows,
+) {
     type One = DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable = 1, Ds]>;
     let cos: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = cos.dma_gather_scaled(rope_offset);
     let sin: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![Ds]> = sin.dma_gather_scaled(rope_offset);
     let cos: One = unsafe { cos.reshape() };
     let sin: One = unsafe { sin.reshape() };
 
-    let mut rows: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable, Ds]> = DmTensor::new();
     ctx.sub
         .begin(cos.view())
         .fetch::<m![RopeTable = 1, Ds / 16], m![Ds % 16]>()
@@ -45,7 +46,7 @@ pub(crate) fn load_tables(
         .commit_view(rows.view_mut().tile::<m![RopeTable], 1, m![RopeTable = 1 #{!} 2, Ds]>(1));
 
     let rows: HbmTensor<bf16, Chip, m![RopeTable, Ds]> = rows.to_hbm(&mut ctx.tdma);
-    rows.to_dm(&mut ctx.tdma)
+    rows.view().to_dm_view(&mut ctx.tdma, out.view_mut());
 }
 
 /// Runs per slice, one KV head to a slice, on the cluster that projected the head.

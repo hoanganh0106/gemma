@@ -56,29 +56,61 @@ pub fn sliding_project_qkv(
     v_cache: &mut HbmTensor<bf16, Chip, m![Ts, Ns, Ds]>,
     q_out: &mut HbmTensor<bf16, Chip, m![Ns, Gs, Ds]>,
 ) {
-    use crate::device::qkv::{self, Term};
+    use crate::device::qkv::{self, RopeTable, Term};
 
-    let rope_rows = qkv::rope::load_tables(ctx, rope_offset, cos, sin);
+    // Phase A: every small transfer of the kernel. A one-iteration loop is a scheduling unit of
+    // its own that is issued first, so none of these lands between the weight loads, where each
+    // would hold the next weight load back behind slow tensor-unit passes.
+    let mut x_dm: qkv::xnorm8::XPieces<layout::QueryClusters> = DmTensor::new();
+    let mut nw_dm: qkv::xnorm8::XPieces<layout::QueryClusters> = DmTensor::new();
+    let mut qs_dm: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Gs, Ds]> = DmTensor::new();
+    let mut ks_dm: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Ds]> = DmTensor::new();
+    let mut vs_dm: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Ds]> = DmTensor::new();
+    let mut qn_dm: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Ds]> = DmTensor::new();
+    let mut kn_dm: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Ds]> = DmTensor::new();
+    let mut rope_scratch: DmTensor<bf16, Chip, m![1 # 2], m![1 # 256], m![RopeTable, Ds]> = DmTensor::new();
+    let mut rope_rows: qkv::rope::RopeRows = DmTensor::new();
+    let mut x_terms: qkv::xnorm8::XTerms<layout::QueryClusters> = DmTensor::new();
+    let mut qw_dm: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::QueryRowSlices, m![Qs % 8, H]> = DmTensor::new();
+    let mut kw_dm: DmTensor<f8e4m3, Chip, layout::KeyValueClusters, qkv::KeyValueRowSlices, m![Ps % 4, H]> = DmTensor::new();
+    let mut vw_dm: DmTensor<f8e4m3, Chip, layout::KeyValueClusters, qkv::KeyValueRowSlices, m![Ps % 4, H]> = DmTensor::new();
+    for _phase in 0..1 {
+        x.view().to_dm_view(&mut ctx.tdma, x_dm.view_mut());
+        input_rms_weight.view().to_dm_view(&mut ctx.tdma, nw_dm.view_mut());
+        let qs: HbmTensorView<'_, bf16, Chip, m![Ns, Gs, Ds]> = unsafe { q_weight_scale.view().reshape() };
+        qs.to_dm_view(&mut ctx.tdma, qs_dm.view_mut());
+        let ks: HbmTensorView<'_, bf16, Chip, m![Ns, Ds]> = unsafe { k_weight_scale.view().reshape() };
+        ks.to_dm_view(&mut ctx.tdma, ks_dm.view_mut());
+        let vs: HbmTensorView<'_, bf16, Chip, m![Ns, Ds]> = unsafe { v_weight_scale.view().reshape() };
+        vs.to_dm_view(&mut ctx.tdma, vs_dm.view_mut());
+        q_rms_weight.view().to_dm_view(&mut ctx.tdma, qn_dm.view_mut());
+        k_rms_weight.view().to_dm_view(&mut ctx.tdma, kn_dm.view_mut());
+        qkv::rope::load_tables(ctx, rope_offset, cos, sin, &mut rope_scratch, &mut rope_rows);
+        // Normalize on 16 real copies of sixteen 240-element pieces, then all-gather: every one
+        // of the 256 slices of both clusters ends with a genuine copy of the whole normalized H.
+        qkv::xnorm8::normalize_everywhere_f8::<layout::QueryClusters>(ctx, &x_dm, &nw_dm, &mut x_terms);
+        q_weight.view().to_dm_view(&mut ctx.tdma, qw_dm.view_mut());
+    }
 
-    // Normalize on 16 real copies of sixteen 240-element pieces, then all-gather: every one of
-    // the 256 slices of both clusters ends with a genuine copy of the whole normalized H.
-    let x = qkv::xnorm8::normalize_everywhere_f8::<layout::QueryClusters>(ctx, x, input_rms_weight);
+    k_weight.view().to_dm_view(&mut ctx.tdma, kw_dm.view_mut());
+    v_weight.view().to_dm_view(&mut ctx.tdma, vw_dm.view_mut());
+
     let x: DmTensor<f8e4m3, Chip, layout::QueryClusters, qkv::QueryRowSlices, m![Term, H]> =
-        unsafe { x.reshape() };
+        unsafe { x_terms.reshape() };
 
     // Each cluster keeps the four heads it projected, one head per slice, through the head
     // norms and RoPE. The two halves meet only in HBM: q_out and the KV cache are chip-wide.
     let q: DmTensor<bf16, Chip, qkv::HeadClusters, qkv::HeadSlices, m![Gs, Ds]> =
-        qkv::proj8::project_query(ctx, &x, q_weight, q_weight_scale);
-    let (k, v) = qkv::proj8::project_key_value(ctx, &x, k_weight, v_weight, k_weight_scale, v_weight_scale);
+        qkv::proj8::project_query(ctx, &x, &qw_dm, &qs_dm);
+    let (k, v) = qkv::proj8::project_key_value(ctx, &x, &kw_dm, &vw_dm, &ks_dm, &vs_dm);
 
     // Relabel to the axes the shared per-head tensors (norm weights, cos/sin) are copied over.
     let q: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Gs, Ds]> = unsafe { q.reshape() };
     let k: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Ds]> = unsafe { k.reshape() };
     let v: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Ds]> = unsafe { v.reshape() };
 
-    let q = qkv::headnorm::normalize_query(ctx, &q, q_rms_weight);
-    let k = qkv::headnorm::normalize_key(ctx, &k, k_rms_weight);
+    let q = qkv::headnorm::normalize_query(ctx, &q, &qn_dm);
+    let k = qkv::headnorm::normalize_key(ctx, &k, &kn_dm);
     let v = qkv::headnorm::normalize_value(ctx, &v);
 
     let (q, k) = qkv::rope::apply_rope(ctx, &q, &k, &rope_rows);

@@ -16,7 +16,7 @@ use crate::{Chip, EPS};
 // columns) or of a down half-row (7680), Xp is the packet. The scale tiles reduce Ut / Dt only, so
 // four partial sums (Xp / 16) leave the Vector Engine per row: a full commit packet, no transpose
 // (the Transpose Engine is main-context only, the scale tiles run on the sub context).
-axes![Rep32 = 32, Ring8 = 8, T2 = 2, Xh = 3840, Rep4 = 4, Ring64 = 64, Xg = 120, Xd = 7680, Ut = 60, Dt = 120, Xp = 64, C2 = 2];
+axes![Rep32 = 32, Ring8 = 8, T2 = 2, Xh = 3840, Rep4 = 4, Ring64 = 64, Xg = 120, Xd = 7680, Ut = 60, Dt = 120, Xp = 64, C2 = 2, Lead4 = 4, Hg = 128, Pw = 64];
 
 const H_F32: f32 = H::SIZE as f32;
 const INVSQRT2: f32 = 0.70710678118f32;
@@ -310,17 +310,22 @@ fn regroup_scaled(
 ) -> DmTensor<f32, Chip, UpGateClusters, Groups, m![L % 120]> {
     let global_scale: DmTensor<f32, Chip, UpGateClusters, m![L / 120 % 64, 1 # 4], m![1 # 8]> =
         global_scale.to_dm(&mut ctx.tdma);
-    let global_scale: DmTensor<f32, Chip, UpGateClusters, Groups, m![1 # 8]> = ctx
+    // Only the first slice of a group holds the scalar. An all-gather over the group hands every
+    // slice the four slices' words in slice order; word 0 is the scalar, the other three are never
+    // read. (CustomBroadcast needed a bitmap: a 2.8K-cycle DMA load on the device.)
+    let global_scale: DmTensor<f32, Chip, UpGateClusters, m![L / 120 % 64, Lead4], m![1 # 8]> =
+        unsafe { global_scale.reshape() };
+    let global_scale: DmTensor<f32, Chip, UpGateClusters, Groups, m![Lead4, 1 # 8]> = ctx
         .main
         .begin(global_scale.view())
         .fetch::<m![1], m![1 # 8]>()
-        .switch::<Groups, m![1]>(SwitchConfig::CustomBroadcast { ring_size: 4 })
-        .collect::<m![1], m![1 # 8]>()
+        .switch::<Groups, m![1, Lead4]>(SwitchConfig::Broadcast1 { slice1: 4, slice0: 1 })
+        .collect::<m![1, Lead4], m![1 # 8]>()
         .commit_trim::<m![1 # 8]>()
         .commit();
     let global_scale_vrf: VrfTensor<f32, Chip, UpGateClusters, Groups, m![1 # 8]> = ctx
         .sub
-        .begin(global_scale.view())
+        .begin(global_scale.view().tile::<m![Lead4], 1, m![Lead4 = 1 # 4, 1 # 8]>(0))
         .fetch::<m![1], m![1 # 8]>()
         .collect::<m![1], m![1 # 8]>()
         .to_vrf();
@@ -600,7 +605,7 @@ pub(crate) fn feedforward(
 
     // Sum the four column quarters while four neighbouring slices meet (rows interleaved two ways, so the pair is 30 consecutive rows).
     let partial: DmTensor<f32, Chip, UpGateClusters, DownRowSlices, m![H / 2 % 15, Xp / 16]> = unsafe { partial.reshape() };
-    let partial: DmTensor<f32, Chip, UpGateClusters, m![H / 30, 1 # 2], m![H % 30]> = ctx
+    let partial: DmTensor<f32, Chip, UpGateClusters, m![H / 30, 1 # 2], m![H % 30 # 64]> = ctx
         .main
         .begin(partial.view())
         .fetch::<m![H / 2 % 15], m![Xp / 16 # 8]>()
@@ -618,9 +623,16 @@ pub(crate) fn feedforward(
 
     // The two clusters' partial results meet in HBM and come back divided over the eight slices the
     // post-norm reduces on; the add and both remaining global scales ride one pass there.
-    let partial: DmTensor<f32, Chip, m![C2], m![H / 30, 1 # 2], m![H % 30]> = unsafe { partial.reshape() };
-    let partial: HbmTensor<f32, Chip, m![C2, H]> = partial.to_hbm(&mut ctx.tdma);
-    let partial: DmTensor<f32, Chip, Cluster, ReducingSlices, m![C2, H % 480]> = partial.to_dm(&mut ctx.tdma);
+    // A scattered store of 120-byte pieces is slow (unaligned tails: 4.5K device cycles), so every
+    // slice's 30 values sit at the head of a 256-byte element and the store is block-aligned; only
+    // the heads come back. (An HBM tensor cannot end in padding: the pad words are a real axis.)
+    let partial: DmTensor<f32, Chip, m![C2], m![Hg, 1 # 2], m![Pw]> = unsafe { partial.reshape() };
+    let partial: HbmTensor<f32, Chip, m![C2, Hg, Pw]> = partial.to_hbm(&mut ctx.tdma);
+    let partial: DmTensor<f32, Chip, Cluster, m![1 # 32, Hg / 16], m![C2, Hg % 16, Pw = 30]> = partial
+        .view()
+        .tile::<m![Pw], 30, m![C2, Hg, Pw = 30 # 64]>(0)
+        .to_dm(&mut ctx.tdma);
+    let partial: DmTensor<f32, Chip, Cluster, ReducingSlices, m![C2, H % 480]> = unsafe { partial.reshape() };
 
     let down_global_scale: DmTensor<f32, Chip, Cluster, m![1 # 32, Dummy8], m![1 # 8]> =
         down_global_scale.to_dm(&mut ctx.tdma);
