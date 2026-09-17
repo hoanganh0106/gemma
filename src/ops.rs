@@ -58,11 +58,14 @@ pub fn sliding_project_qkv(
 ) {
     // Both clusters normalize the same vector; each then projects half the output rows.
     let x: DmTensor<bf16, Chip, layout::QueryClusters, Slice, m![H]> = x.to_dm(&mut ctx.tdma);
+    let x = shared::rmsnorm::normalize(ctx, &x, input_rms_weight);
 
-    // Normalize and leave the result split over the slices that contract it, rather than
-    // gathering it into one slice only to broadcast it back out to all 256.
-    let x: DmTensor<bf16, Chip, layout::QueryClusters, layout::QkvColumns, m![H % 480]> =
-        shared::rmsnorm::normalize_columns(ctx, &x, input_rms_weight);
+    // Quarter H across four slices, then fan those quarters out to the 64 row groups that
+    // contract them. Quarters are 960 bytes, which is flit-aligned; eighths were not.
+    let x: DmTensor<bf16, Chip, layout::QueryClusters, m![1 # 64, H / 960], m![H % 960]> =
+        x.to_dm(&mut ctx.tdma);
+    let x: DmTensor<bf16, Chip, layout::QueryClusters, layout::QkvColumns, m![H % 960]> =
+        layout::broadcast_qkv_hidden(ctx, &x);
 
     let q_hbm: HbmTensor<bf16, Chip, m![Ns, Gs, Ds]> =
         unsafe { sliding::projection::project_query(ctx, &x, q_weight, q_weight_scale).reshape() };
