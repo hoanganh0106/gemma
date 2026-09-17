@@ -3,271 +3,205 @@ use furiosa_opt_std::prelude::*;
 
 use crate::Chip;
 use crate::axes::{Ds, Gs, H, Ns, Ps, Qs};
-use crate::device::layout::{Cluster, Replicated, Slice};
+use crate::device::layout::{
+    Cluster, KeyValueClusters, KeyValueRowsReduced, KvColumns, OutputClusters, QkvColumns, QueryClusters,
+    QueryRowsReduced, Slice, SlidingOutputColumns, SlidingOutputRows,
+};
 
 pub(crate) fn project_query(
     ctx: &mut Context,
-    x: &DmTensor<bf16, Chip, Cluster, Replicated, m![H]>,
+    x: &DmTensor<bf16, Chip, QueryClusters, QkvColumns, m![H % 480]>,
     weight: &HbmTensor<f8e4m3, Chip, m![Qs, H]>,
     weight_scale: &HbmTensor<bf16, Chip, m![Qs]>,
-) -> DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> {
-    type QueryRows = m![Qs / 16];
-
-    let x: DmTensorView<'_, bf16, Chip, Cluster, QueryRows, m![H]> = unsafe { x.view().reshape() };
-    let x_trf: TrfTensor<bf16, Chip, Cluster, QueryRows, m![1], m![H]> = ctx
+) -> HbmTensor<bf16, Chip, m![Qs]> {
+    let x_trf: TrfTensor<bf16, Chip, QueryClusters, QkvColumns, m![1], m![H % 480]> = ctx
         .sub
-        .begin(x)
-        .fetch::<m![1], m![H]>()
-        .collect::<m![H / 16], m![H % 16]>()
+        .begin(x.view())
+        .fetch::<m![1], m![H % 480]>()
+        .collect::<m![H / 16 % 30], m![H % 16]>()
         .to_trf();
 
-    let weight_f8: DmTensor<f8e4m3, Chip, Cluster, QueryRows, m![Qs % 16, H]> = weight.to_dm(&mut ctx.tdma);
-    let weight_dm: DmTensor<bf16, Chip, Cluster, QueryRows, m![Qs % 16, H]> = ctx
+    let weight_f8: DmTensor<f8e4m3, Chip, QueryClusters, QkvColumns, m![Qs % 64, H % 480]> =
+        weight.to_dm(&mut ctx.tdma);
+
+    // 64 output rows by 480 contracted columns per slice; the eight column groups of a row
+    // group add up in the inter-slice reduce, still in f32.
+    let contraction: DmTensor<bf16, Chip, QueryClusters, QueryRowsReduced, m![Qs % 64]> = ctx
         .main
         .begin(weight_f8.view())
-        .fetch::<m![Qs % 16, H / 16], m![H % 16]>()
+        .fetch::<m![Qs % 64, H / 32 % 15], m![H % 32]>()
         .fetch_table_lookup::<bf16>()
-        .collect::<m![Qs % 16, H / 16], m![H % 16]>()
-        .commit_trim::<m![H % 16]>()
-        .commit();
-
-    let contraction: DmTensor<bf16, Chip, Cluster, QueryRows, m![Qs % 16]> = ctx
-        .main
-        .begin(weight_dm.view())
-        .fetch::<m![Qs % 16, H / 16], m![H % 16]>()
-        .collect::<m![Qs % 16, H / 16], m![H % 16]>()
-        .contract_outer::<m![Qs % 16, H / 32], m![H % 32], _, _, _>(&x_trf)
+        .collect::<m![Qs % 64, H / 16 % 30], m![H % 16]>()
+        .contract_outer::<m![Qs % 64, H / 32 % 15], m![H % 32], _, _, _>(&x_trf)
         .contract_packet::<m![1]>()
-        .contract_time::<m![Qs % 16]>()
-        .contract_lane::<m![Qs % 16], m![1 # 8]>(LaneMode::Interleaved)
+        .contract_time::<m![Qs % 64]>()
+        .contract_lane::<m![Qs % 64], m![1 # 8]>(LaneMode::Interleaved)
+        .vector_init()
+        .vector_inter_slice_reduce::<QueryRowsReduced, m![Qs % 64]>(InterSliceReduceOpF32::Add)
+        .vector_final()
         .cast::<bf16, m![1 # 16]>()
-        .transpose::<m![Qs / 4 % 4], m![Qs % 4 # 16]>()
+        .transpose::<m![Qs / 4 % 16], m![Qs % 4 # 16]>()
         .commit_trim::<m![Qs % 4]>()
         .commit();
 
-    let weight_scale: DmTensor<bf16, Chip, Cluster, QueryRows, m![Qs % 16]> = weight_scale.to_dm(&mut ctx.tdma);
-    let weight_scale_vrf: VrfTensor<f32, Chip, Cluster, QueryRows, m![Qs % 16]> = ctx
+    let weight_scale: DmTensor<bf16, Chip, QueryClusters, QueryRowsReduced, m![Qs % 64]> =
+        weight_scale.to_dm(&mut ctx.tdma);
+    let weight_scale_vrf: VrfTensor<f32, Chip, QueryClusters, QueryRowsReduced, m![Qs % 64]> = ctx
         .sub
         .begin(weight_scale.view())
-        .fetch::<m![1], m![Qs % 16]>()
+        .fetch::<m![1], m![Qs % 64]>()
         .fetch_cast::<f32>()
-        .collect::<m![Qs / 8 % 2], m![Qs % 8]>()
+        .collect::<m![Qs / 8 % 8], m![Qs % 8]>()
         .to_vrf();
 
-    let scaled: DmTensor<bf16, Chip, Cluster, QueryRows, m![Qs % 16]> = ctx
+    let scaled: DmTensor<bf16, Chip, QueryClusters, QueryRowsReduced, m![Qs % 64]> = ctx
         .main
         .begin(contraction.view())
-        .fetch::<m![1], m![Qs % 16]>()
+        .fetch::<m![1], m![Qs % 64]>()
         .fetch_cast::<f32>()
-        .collect::<m![Qs / 8 % 2], m![Qs % 8]>()
+        .collect::<m![Qs / 8 % 8], m![Qs % 8]>()
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![Qs / 4 % 4], m![Qs % 4]>()
+        .vector_narrow_split::<m![Qs / 4 % 16], m![Qs % 4]>()
         .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &weight_scale_vrf)
-        .vector_widen_concat::<m![Qs / 8 % 2], m![Qs % 8]>()
+        .vector_widen_concat::<m![Qs / 8 % 8], m![Qs % 8]>()
         .vector_final()
         .cast::<bf16, m![Qs % 8 # 16]>()
         .commit_trim::<m![Qs % 8]>()
         .commit();
 
-    let output: DmTensor<bf16, Chip, Cluster, Slice, m![Qs]> = ctx
-        .main
-        .begin(scaled.view())
-        .fetch::<m![1], m![Qs % 16]>()
-        .switch::<Slice, m![Qs / 16]>(SwitchConfig::Broadcast1 { slice1: 256, slice0: 1 })
-        .collect::<m![Qs / 16], m![Qs % 16]>()
-        .commit_trim::<m![Qs % 16]>()
-        .commit();
-
-    unsafe { output.reshape() }
+    // HBM is chip-wide: this is where the two clusters' row halves become one vector again.
+    scaled.to_hbm(&mut ctx.tdma)
 }
-
-type KvRows = m![Ps / 8];
 
 fn project_one_kv_matrix(
     ctx: &mut Context,
-    x_trf: &TrfTensor<bf16, Chip, Cluster, KvRows, m![1], m![H]>,
+    x_trf: &TrfTensor<bf16, Chip, KeyValueClusters, KvColumns, m![1], m![H % 480]>,
     weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
-) -> DmTensor<bf16, Chip, Cluster, Slice, m![Ps]> {
-    let weight_f8: DmTensor<f8e4m3, Chip, Cluster, KvRows, m![Ps % 8, H]> = weight.to_dm(&mut ctx.tdma);
-    let weight_dm: DmTensor<bf16, Chip, Cluster, KvRows, m![Ps % 8, H]> = ctx
+) -> HbmTensor<bf16, Chip, m![Ps]> {
+    let weight_f8: DmTensor<f8e4m3, Chip, KeyValueClusters, KvColumns, m![Ps % 32, H % 480]> =
+        weight.to_dm(&mut ctx.tdma);
+
+    let contraction: DmTensor<bf16, Chip, KeyValueClusters, KeyValueRowsReduced, m![Ps % 32]> = ctx
         .main
         .begin(weight_f8.view())
-        .fetch::<m![Ps % 8, H / 16], m![H % 16]>()
+        .fetch::<m![Ps % 32, H / 32 % 15], m![H % 32]>()
         .fetch_table_lookup::<bf16>()
-        .collect::<m![Ps % 8, H / 16], m![H % 16]>()
-        .commit_trim::<m![H % 16]>()
-        .commit();
-
-    let contraction: DmTensor<bf16, Chip, Cluster, KvRows, m![Ps % 8]> = ctx
-        .main
-        .begin(weight_dm.view())
-        .fetch::<m![Ps % 8, H / 16], m![H % 16]>()
-        .collect::<m![Ps % 8, H / 16], m![H % 16]>()
-        .contract_outer::<m![Ps % 8, H / 32], m![H % 32], _, _, _>(x_trf)
+        .collect::<m![Ps % 32, H / 16 % 30], m![H % 16]>()
+        .contract_outer::<m![Ps % 32, H / 32 % 15], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
-        .contract_time::<m![Ps % 8]>()
-        .contract_lane::<m![Ps % 8], m![1 # 8]>(LaneMode::Interleaved)
+        .contract_time::<m![Ps % 32]>()
+        .contract_lane::<m![Ps % 32], m![1 # 8]>(LaneMode::Interleaved)
+        .vector_init()
+        .vector_inter_slice_reduce::<KeyValueRowsReduced, m![Ps % 32]>(InterSliceReduceOpF32::Add)
+        .vector_final()
         .cast::<bf16, m![1 # 16]>()
-        .transpose::<m![Ps / 4 % 2], m![Ps % 4 # 16]>()
+        .transpose::<m![Ps / 4 % 8], m![Ps % 4 # 16]>()
         .commit_trim::<m![Ps % 4]>()
         .commit();
 
-    let weight_scale: DmTensor<bf16, Chip, Cluster, KvRows, m![Ps % 8]> = weight_scale.to_dm(&mut ctx.tdma);
-    let weight_scale_vrf: VrfTensor<f32, Chip, Cluster, KvRows, m![Ps % 8]> = ctx
+    let weight_scale: DmTensor<bf16, Chip, KeyValueClusters, KeyValueRowsReduced, m![Ps % 32]> =
+        weight_scale.to_dm(&mut ctx.tdma);
+    let weight_scale_vrf: VrfTensor<f32, Chip, KeyValueClusters, KeyValueRowsReduced, m![Ps % 32]> = ctx
         .sub
         .begin(weight_scale.view())
-        .fetch::<m![1], m![Ps % 8]>()
+        .fetch::<m![1], m![Ps % 32]>()
         .fetch_cast::<f32>()
-        .collect::<m![1], m![Ps % 8]>()
+        .collect::<m![Ps / 8 % 4], m![Ps % 8]>()
         .to_vrf();
 
-    let scaled: DmTensor<bf16, Chip, Cluster, KvRows, m![Ps % 8]> = ctx
+    let scaled: DmTensor<bf16, Chip, KeyValueClusters, KeyValueRowsReduced, m![Ps % 32]> = ctx
         .main
         .begin(contraction.view())
-        .fetch::<m![1], m![Ps % 8]>()
+        .fetch::<m![1], m![Ps % 32]>()
         .fetch_cast::<f32>()
-        .collect::<m![1], m![Ps % 8]>()
+        .collect::<m![Ps / 8 % 4], m![Ps % 8]>()
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![Ps / 4 % 2], m![Ps % 4]>()
+        .vector_narrow_split::<m![Ps / 4 % 8], m![Ps % 4]>()
         .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &weight_scale_vrf)
-        .vector_widen_concat::<m![1], m![Ps % 8]>()
+        .vector_widen_concat::<m![Ps / 8 % 4], m![Ps % 8]>()
         .vector_final()
         .cast::<bf16, m![Ps % 8 # 16]>()
         .commit_trim::<m![Ps % 8]>()
         .commit();
 
-    ctx.main
-        .begin(scaled.view())
-        .fetch::<m![1], m![Ps % 8 # 16]>()
-        .switch::<Slice, m![Ps / 8]>(SwitchConfig::Broadcast1 { slice1: 256, slice0: 1 })
-        .collect::<m![Ps / 8], m![Ps % 8 # 16]>()
-        .commit_trim::<m![Ps % 8]>()
-        .commit()
+    scaled.to_hbm(&mut ctx.tdma)
 }
 
 pub(crate) fn project_key_value(
     ctx: &mut Context,
-    x: &DmTensor<bf16, Chip, Cluster, Replicated, m![H]>,
+    x: &DmTensor<bf16, Chip, QueryClusters, QkvColumns, m![H % 480]>,
     k_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     v_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
     v_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
-) -> (
-    DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]>,
-    DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]>,
-) {
-    let x: DmTensorView<'_, bf16, Chip, Cluster, KvRows, m![H]> = unsafe { x.view().reshape() };
-    let x_trf: TrfTensor<bf16, Chip, Cluster, KvRows, m![1], m![H]> = ctx
+) -> (HbmTensor<bf16, Chip, m![Ps]>, HbmTensor<bf16, Chip, m![Ps]>) {
+    // Same 2 clusters and 256 slices, named by the K/V row count instead of Q's.
+    let x: DmTensorView<'_, bf16, Chip, KeyValueClusters, KvColumns, m![H % 480]> = unsafe { x.view().reshape() };
+    let x_trf: TrfTensor<bf16, Chip, KeyValueClusters, KvColumns, m![1], m![H % 480]> = ctx
         .sub
         .begin(x)
-        .fetch::<m![H / 16], m![H % 16]>()
-        .collect::<m![H / 16], m![H % 16]>()
+        .fetch::<m![1], m![H % 480]>()
+        .collect::<m![H / 16 % 30], m![H % 16]>()
         .to_trf();
 
-    let k: DmTensor<bf16, Chip, Cluster, Slice, m![Ps]> = project_one_kv_matrix(ctx, &x_trf, k_weight, k_weight_scale);
-    let v: DmTensor<bf16, Chip, Cluster, Slice, m![Ps]> = project_one_kv_matrix(ctx, &x_trf, v_weight, v_weight_scale);
+    let k = project_one_kv_matrix(ctx, &x_trf, k_weight, k_weight_scale);
+    let v = project_one_kv_matrix(ctx, &x_trf, v_weight, v_weight_scale);
 
-    (unsafe { k.reshape() }, unsafe { v.reshape() })
+    (k, v)
 }
 
 pub(crate) fn project_output(
     ctx: &mut Context,
-    x: &DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]>,
+    x: &DmTensor<bf16, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]>,
     weight: &HbmTensor<f8e4m3, Chip, m![H, Qs]>,
     weight_scale: &HbmTensor<bf16, Chip, m![H]>,
-) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
-    const CHUNK: usize = 1024;
-
-    let p0 = output_partial(ctx, x, weight, 0);
-    let p1 = output_partial(ctx, x, weight, CHUNK);
-    let p2 = output_partial(ctx, x, weight, 2 * CHUNK);
-    let p3 = output_partial(ctx, x, weight, 3 * CHUNK);
-
-    let p01 = add_partials(ctx, &p0, &p1);
-    let p23 = add_partials(ctx, &p2, &p3);
-    let result = add_partials(ctx, &p01, &p23);
-    let result = apply_output_channel_scale(ctx, &result, weight_scale);
-    result.to_dm(&mut ctx.tdma)
-}
-
-type HiddenRows = m![H / 120, 1 # 8];
-
-fn output_partial(
-    ctx: &mut Context,
-    x: &DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]>,
-    weight: &HbmTensor<f8e4m3, Chip, m![H, Qs]>,
-    offset: usize,
-) -> DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]> {
-    let x: DmTensorView<'_, bf16, Chip, Cluster, HiddenRows, m![Qs]> = unsafe { x.view().reshape() };
-    let x = x.tile::<m![Qs], 1024, m![Qs = 1024 # 4096]>(offset);
-    let x_trf: TrfTensor<bf16, Chip, Cluster, HiddenRows, m![1], m![Qs = 1024]> = ctx
+) -> HbmTensor<bf16, Chip, m![H]> {
+    let x_trf: TrfTensor<bf16, Chip, OutputClusters, SlidingOutputColumns, m![1], m![Qs % 256]> = ctx
         .sub
-        .begin(x)
-        .fetch::<m![1], m![Qs = 1024]>()
-        .collect::<m![Qs = 1024 / 16], m![Qs = 1024 % 16]>()
+        .begin(x.view())
+        .fetch::<m![1], m![Qs % 256]>()
+        .collect::<m![Qs / 16 % 16], m![Qs % 16]>()
         .to_trf();
-    let weight_f8: DmTensor<f8e4m3, Chip, Cluster, HiddenRows, m![H % 120, Qs = 1024]> = weight
-        .view()
-        .tile::<m![Qs], 1024, m![H, Qs = 1024 # 4096]>(offset)
-        .to_dm(&mut ctx.tdma);
-    let weight: DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120, Qs = 1024]> = ctx
+
+    let weight_f8: DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![H % 120, Qs % 256]> =
+        weight.to_dm(&mut ctx.tdma);
+
+    // Slice (row group, column group) holds 120 of this cluster's output rows by 256 of the
+    // 4096 contracted columns. The f8 -> bf16 decode rides the fetch, and the sixteen column
+    // partials meet in the inter-slice reduce while still f32.
+    let contraction: DmTensor<bf16, Chip, OutputClusters, SlidingOutputRows, m![H % 120]> = ctx
         .main
         .begin(weight_f8.view())
-        .fetch::<m![H % 120, Qs = 1024 / 32], m![Qs = 1024 % 32]>()
+        .fetch::<m![H % 120, Qs / 32 % 8], m![Qs % 32]>()
         .fetch_table_lookup::<bf16>()
-        .collect::<m![H % 120, Qs = 1024 / 16], m![Qs = 1024 % 16]>()
-        .commit_trim::<m![Qs = 1024 % 16]>()
-        .commit();
-    ctx.main
-        .begin(weight.view())
-        .fetch::<m![H % 120, Qs = 1024 / 16], m![Qs = 1024 % 16]>()
-        .collect::<m![H % 120, Qs = 1024 / 16], m![Qs = 1024 % 16]>()
-        .contract_outer::<m![H % 120, Qs = 1024 / 32], m![Qs = 1024 % 32], _, _, _>(&x_trf)
+        .collect::<m![H % 120, Qs / 16 % 16], m![Qs % 16]>()
+        .contract_outer::<m![H % 120, Qs / 32 % 8], m![Qs % 32], _, _, _>(&x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![H % 120]>()
         .contract_lane::<m![H % 120], m![1 # 8]>(LaneMode::Interleaved)
+        .vector_init()
+        .vector_inter_slice_reduce::<SlidingOutputRows, m![H % 120]>(InterSliceReduceOpF32::Add)
+        .vector_final()
         .cast::<bf16, m![1 # 16]>()
         .transpose::<m![H / 4 % 30], m![H % 4 # 16]>()
         .commit_trim::<m![H % 4]>()
-        .commit()
+        .commit();
+
+    let result = apply_output_channel_scale(ctx, &contraction, weight_scale);
+    // HBM is chip-wide, so this is where the two clusters' halves become one vector again.
+    result.to_hbm(&mut ctx.tdma)
 }
 
-fn add_partials(
+fn apply_output_channel_scale<Cluster: M, Rows: M>(
     ctx: &mut Context,
-    left: &DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]>,
-    right: &DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]>,
-) -> DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]> {
-    let left: VrfTensor<f32, Chip, Cluster, HiddenRows, m![H % 120]> = ctx
-        .sub
-        .begin(left.view())
-        .fetch::<m![1], m![H % 120]>()
-        .fetch_cast::<f32>()
-        .collect::<m![H / 8 % 15], m![H % 8]>()
-        .to_vrf();
-    ctx.main
-        .begin(right.view())
-        .fetch::<m![1], m![H % 120]>()
-        .fetch_cast::<f32>()
-        .collect::<m![H / 8 % 15], m![H % 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_clip(ClipBinaryOpF32::Add, &left)
-        .vector_final()
-        .cast::<bf16, m![H % 8 # 16]>()
-        .commit_trim::<m![H % 8]>()
-        .commit()
-}
-
-fn apply_output_channel_scale(
-    ctx: &mut Context,
-    x: &DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]>,
+    x: &DmTensor<bf16, Chip, Cluster, Rows, m![H % 120]>,
     weight_scale: &HbmTensor<bf16, Chip, m![H]>,
-) -> DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]> {
-    let weight_scale: DmTensor<bf16, Chip, Cluster, HiddenRows, m![H % 120]> = weight_scale.to_dm(&mut ctx.tdma);
-    let weight_scale_vrf: VrfTensor<f32, Chip, Cluster, HiddenRows, m![H % 120]> = ctx
+) -> DmTensor<bf16, Chip, Cluster, Rows, m![H % 120]> {
+    let weight_scale: DmTensor<bf16, Chip, Cluster, Rows, m![H % 120]> = weight_scale.to_dm(&mut ctx.tdma);
+    let weight_scale_vrf: VrfTensor<f32, Chip, Cluster, Rows, m![H % 120]> = ctx
         .sub
         .begin(weight_scale.view())
         .fetch::<m![1], m![H % 120]>()

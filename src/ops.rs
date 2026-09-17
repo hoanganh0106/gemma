@@ -56,14 +56,24 @@ pub fn sliding_project_qkv(
     v_cache: &mut HbmTensor<bf16, Chip, m![Ts, Ns, Ds]>,
     q_out: &mut HbmTensor<bf16, Chip, m![Ns, Gs, Ds]>,
 ) {
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = x.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &x, input_rms_weight);
+    // Both clusters normalize the same vector; each then projects half the output rows.
+    let x: DmTensor<bf16, Chip, layout::QueryClusters, Slice, m![H]> = x.to_dm(&mut ctx.tdma);
 
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![H]> = layout::broadcast_hidden(ctx, &x);
+    // Normalize and leave the result split over the slices that contract it, rather than
+    // gathering it into one slice only to broadcast it back out to all 256.
+    let x: DmTensor<bf16, Chip, layout::QueryClusters, layout::QkvColumns, m![H % 480]> =
+        shared::rmsnorm::normalize_columns(ctx, &x, input_rms_weight);
 
-    let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> =
-        sliding::projection::project_query(ctx, &x, q_weight, q_weight_scale);
-    let (k, v) = sliding::projection::project_key_value(ctx, &x, k_weight, v_weight, k_weight_scale, v_weight_scale);
+    let q_hbm: HbmTensor<bf16, Chip, m![Ns, Gs, Ds]> =
+        unsafe { sliding::projection::project_query(ctx, &x, q_weight, q_weight_scale).reshape() };
+    let (k_hbm, v_hbm) =
+        sliding::projection::project_key_value(ctx, &x, k_weight, v_weight, k_weight_scale, v_weight_scale);
+    let k_hbm: HbmTensor<bf16, Chip, m![Ns, Ds]> = unsafe { k_hbm.reshape() };
+    let v_hbm: HbmTensor<bf16, Chip, m![Ns, Ds]> = unsafe { v_hbm.reshape() };
+
+    let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> = q_hbm.to_dm(&mut ctx.tdma);
+    let k: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = k_hbm.to_dm(&mut ctx.tdma);
+    let v: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Ds]> = v_hbm.to_dm(&mut ctx.tdma);
 
     let q: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> =
         sliding::rmsnorm::normalize_query(ctx, &q, q_rms_weight);
@@ -138,12 +148,16 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![Ns, Gs, Ds]> = x.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![Qs]> = unsafe { x.reshape() };
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![Qs]> = layout::broadcast_sliding_heads(ctx, &x);
+    // One DMA load hands every slice the 512 columns it contracts, once per row group. The
+    // Switch ring used to broadcast the whole vector on MainContext, one flit per target.
+    let x: DmTensor<bf16, Chip, layout::OutputClusters, m![H / 120 % 16, Ns, Gs], m![Ds]> =
+        x.to_dm(&mut ctx.tdma);
+    let x: DmTensor<bf16, Chip, layout::OutputClusters, layout::SlidingOutputColumns, m![Qs % 256]> =
+        unsafe { x.reshape() };
 
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> =
+    let projected: HbmTensor<bf16, Chip, m![H]> =
         sliding::projection::project_output(ctx, &x, o_weight, o_weight_scale);
+    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = projected.to_dm(&mut ctx.tdma);
     let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::rmsnorm::normalize(ctx, &x, post_attn_rms_weight);
 
     let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
@@ -222,9 +236,15 @@ pub fn decoder_feedforward(
     layer_scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
 ) {
     let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
-    let x = shared::rmsnorm::normalize(ctx, &residual, pre_ff_rms_weight);
 
-    let x: DmTensor<bf16, Chip, Cluster, Replicated, m![H]> = x.to_dm(&mut ctx.tdma);
+    // Both clusters normalize the same vector; each then projects half of L.
+    let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
+    let x = shared::rmsnorm::normalize(ctx, &x, pre_ff_rms_weight);
+
+    let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, m![1 # 128, H / 1920], m![H % 1920]> =
+        x.to_dm(&mut ctx.tdma);
+    let x: DmTensor<bf16, Chip, shared::mlp::UpGateClusters, shared::mlp::UpGateColumns, m![H % 1920]> =
+        layout::broadcast_feedforward_hidden(ctx, &x);
     let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::mlp::feedforward(
         ctx,
         x,
