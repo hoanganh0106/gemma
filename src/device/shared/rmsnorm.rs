@@ -119,6 +119,24 @@ pub(crate) fn normalize<Cluster: M, Slice: M>(
         .commit()
 }
 
+/// The same normalization, left divided over the eight slices that took the sum of squares.
+/// Whatever runs next then runs 480 elements wide on eight slices instead of 3840 on one.
+pub(crate) fn normalize_spread<Cluster: M, Slice: M>(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Slice, m![H]>,
+    rms_weight: &HbmTensor<bf16, Chip, m![H]>,
+) -> DmTensor<bf16, Chip, Cluster, ReducingSlices, m![H % 480]> {
+    let normalized = normalized_f32(ctx, x, rms_weight);
+
+    ctx.main
+        .begin(normalized.view())
+        .fetch::<m![1], m![H % 480]>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .cast::<bf16, m![H % 8 # 16]>()
+        .commit_trim::<m![H % 8]>()
+        .commit()
+}
+
 /// Each of the eight 480-column pieces replicated across the 32 row groups that contract it.
 /// Eight times less copying than gathering the pieces and broadcasting the whole vector.
 pub(crate) fn normalize_columns<Cluster: M, Slice: M>(

@@ -5,6 +5,35 @@ use crate::Chip;
 use crate::axes::{H, Mv};
 use crate::device::layout::{Cluster, Slice};
 
+/// Adds the residual stream, 480 elements per slice over the eight slices `normalize_spread`
+/// leaves them on. One slice at a time meant 3840 elements wide and two VRF round trips.
+pub(crate) fn add_spread<Cluster: M, Slices: M>(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]>,
+    residual: &DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]>,
+) -> DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]> {
+    let residual_vrf: VrfTensor<f32, Chip, Cluster, Slices, m![H % 480]> = ctx
+        .sub
+        .begin(residual.view())
+        .fetch::<m![1], m![H % 480]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .to_vrf();
+
+    ctx.main
+        .begin(x.view())
+        .fetch::<m![1], m![H % 480]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_clip(ClipBinaryOpF32::Add, &residual_vrf)
+        .vector_final()
+        .cast::<bf16, m![H % 8 # 16]>()
+        .commit_trim::<m![H % 8]>()
+        .commit()
+}
+
 pub(crate) fn add(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![H]>,
@@ -41,6 +70,37 @@ pub(crate) fn add(
     }
 
     output
+}
+
+/// The layer gate, 480 elements per slice instead of 3840 on one.
+pub(crate) fn gate_spread<Cluster: M, Slices: M>(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]>,
+    scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
+) -> DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]> {
+    let scalar: DmTensor<bf16, Chip, Cluster, Slices, m![1 # 8]> = scalar.to_dm(&mut ctx.tdma);
+    let scalar_vrf: VrfTensor<f32, Chip, Cluster, Slices, m![1 # 8]> = ctx
+        .sub
+        .begin(scalar.view())
+        .fetch::<m![1], m![1 # 8]>()
+        .fetch_cast::<f32>()
+        .collect::<m![1], m![1 # 8]>()
+        .to_vrf();
+
+    ctx.main
+        .begin(x.view())
+        .fetch::<m![1], m![H % 480]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_split::<m![H / 4 % 120], m![H % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &scalar_vrf)
+        .vector_widen_concat::<m![H / 8 % 60], m![H % 8]>()
+        .vector_final()
+        .cast::<bf16, m![H % 8 # 16]>()
+        .commit_trim::<m![H % 8]>()
+        .commit()
 }
 
 pub(crate) fn scale_by_layer_gate(

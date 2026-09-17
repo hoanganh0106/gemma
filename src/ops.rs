@@ -161,10 +161,13 @@ pub fn sliding_attention_output(
     let projected: HbmTensor<bf16, Chip, m![H]> =
         sliding::projection::project_output(ctx, &x, o_weight, o_weight_scale);
     let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = projected.to_dm(&mut ctx.tdma);
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::rmsnorm::normalize(ctx, &x, post_attn_rms_weight);
+    // Stay divided over eight slices to the end: the write target is HBM, which does not care.
+    let x: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
+        shared::rmsnorm::normalize_spread(ctx, &x, post_attn_rms_weight);
 
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = residual_hbm.to_dm(&mut ctx.tdma);
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::residual::add(ctx, &x, &residual);
+    let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
+        residual_hbm.to_dm(&mut ctx.tdma);
+    let residual = shared::residual::add_spread(ctx, &x, &residual);
     residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
 
@@ -261,10 +264,13 @@ pub fn decoder_feedforward(
         down_global_scale,
     );
 
-    let x: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::rmsnorm::normalize(ctx, &x, post_ff_rms_weight);
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = shared::residual::add(ctx, &x, &residual);
-    let residual: DmTensor<bf16, Chip, Cluster, Slice, m![H]> =
-        shared::residual::scale_by_layer_gate(ctx, &residual, layer_scalar);
+    // Stay divided over eight slices to the end, and do the add and the gate in one pass.
+    let x: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
+        shared::rmsnorm::normalize_spread(ctx, &x, post_ff_rms_weight);
+    let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
+        residual_hbm.to_dm(&mut ctx.tdma);
+    let residual = shared::residual::add_spread(ctx, &x, &residual);
+    let residual = shared::residual::gate_spread(ctx, &residual, layer_scalar);
     residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
 
