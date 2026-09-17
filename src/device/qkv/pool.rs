@@ -1,4 +1,4 @@
-//! LEVER C: every small dependency-free bf16 load of the kernel (three row scales, two head-norm
+//! Every small dependency-free bf16 load of the kernel (three row scales, two head-norm
 //! weights, the parked RoPE rows) goes into a tile of ONE DM tensor. Tile writes of one tensor are
 //! chained by the scheduler in PROGRAM ORDER (each `to_dm_view` depends on the previous one), so
 //! the DMA queue holds them back to back in the order written here, and all of them precede the

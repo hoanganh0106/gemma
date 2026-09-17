@@ -1,7 +1,7 @@
-//! Feed-forward, third layout: the down projection split by COLUMN halves over the two clusters, so
+//! Feed-forward: the down projection is split by COLUMN halves over the two clusters, so
 //! the GeGLU output never leaves its cluster (no HBM round trip); only the two partial results meet
-//! in HBM at the very end. Otherwise as `ffn3`: whole weight rows for up/gate, the block dequantization folded
-//! into an f8 x f8 contraction (see `ffn2`), and the normalized activation gathered into every
+//! in HBM at the very end. Up and gate use whole weight rows, the block dequantization is folded
+//! into an f8 x f8 contraction, and the normalized activation is gathered into every
 //! slice by the Switch instead of travelling through HBM.
 
 use furiosa_opt_std::prelude::*;

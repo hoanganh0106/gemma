@@ -160,7 +160,7 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    sliding::output2::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
+    sliding::output5::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
 }
 
 #[device(chip = 1)]
@@ -234,7 +234,7 @@ pub fn decoder_feedforward(
     layer_scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
 ) {
     // RMSNorm on real copies of the pieces, two exact f8 terms, all-gathered into every slice;
-    // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn4.rs).
+    // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn6.rs).
     let (x, residual_spread) = shared::ffn6::feedforward(
         ctx,
         &*residual_hbm,

@@ -8,7 +8,7 @@ use crate::axes::{Ds, Gs, H, Ns, Qs};
 use crate::device::layout::{OutputClusters, SlidingOutputColumns, SlidingOutputRows};
 use crate::{Chip, EPS};
 
-axes![Lq = 2, Oc = 2, Ok = 2, Or = 16, Og = 32, Ow = 8, Ob = 8];
+axes![Lq = 2, Oc = 2, Ok = 2, Or = 16, Og = 32, Ow = 8, Ob = 8, Orep = 8, Oring = 32];
 
 pub(crate) const H_F32: f32 = H::SIZE as f32;
 pub(crate) const X_SCALE: f32 = 16.0;
@@ -31,7 +31,6 @@ pub(crate) fn to_vrf_120(
         .collect::<m![H / 8 % 15], m![H % 8]>()
         .to_vrf()
 }
-
 pub(crate) type Residual = DmTensor<f32, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]>;
 pub(crate) type Levels = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq, Qs % 256]>;
 
@@ -79,42 +78,29 @@ pub(crate) fn contract_tile_a(
     ctx: &mut Context,
     weight: &WeightTileA,
     x_trf: &TrfTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq], m![Qs % 256]>,
-    scale: &VrfTensor<f32, Chip, OutputClusters, Rows, m![H % 120 = 96]>,
-    y: &mut DmTensor<f32, Chip, OutputClusters, Rows, m![H % 120]>,
+    y: &mut DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]>,
     offset: usize,
 ) {
     // The sixteen column partials of a row group meet in the inter-slice reduce, still f32. The
     // transpose lays the result out as (4 rows) x (levels) x (row in 4) so that the next pass can
     // add the levels up along time and keep four rows per packet.
-    let y_levels: DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120 = 96 / 4, Lq, H % 120 = 96 % 4]> = ctx
-        .main
+    ctx.main
         .begin(weight.view())
         .fetch::<m![H % 120 = 96, Qs / 32 % 8], m![Qs % 32]>()
         .collect::<m![H % 120 = 96, Qs / 32 % 8], m![Qs % 32]>()
         .contract_outer::<m![H % 120 = 96, Qs / 64 % 4], m![Qs % 64], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![H % 120 = 96]>()
-        .contract_lane::<m![H % 120 = 96], m![Lq # 8]>(LaneMode::Interleaved)
-        .vector_init()
-        .vector_inter_slice_reduce::<Rows, m![H % 120 = 96]>(InterSliceReduceOpF32::Add)
-        .vector_final()
-        .cast::<bf16, m![Lq # 16]>()
-        .transpose::<m![H % 120 = 96 / 4, Lq], m![H % 120 = 96 % 4 # 16]>()
-        .commit_trim::<m![H % 120 = 96 % 4]>()
-        .commit();
-
-    ctx.main
-        .begin(y_levels.view())
-        .fetch::<m![H % 120 = 96 / 4], m![Lq, H % 120 = 96 % 4]>()
-        .fetch_cast::<f32>()
-        .collect::<m![H % 120 = 96 / 4], m![Lq, H % 120 = 96 % 4]>()
+        .contract_lane::<m![H % 120 = 96, Lq], m![1 # 8]>(LaneMode::Sequential)
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![H % 120 = 96 / 4, Lq], m![H % 120 = 96 % 4]>()
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), scale)
-        .vector_intra_slice_reduce::<Lq, m![H % 120 = 96 / 4], m![H % 120 = 96 % 4]>(IntraSliceReduceOpF32::Add)
-        .vector_widen_pad::<m![H % 120 = 96 % 4 # 8]>()
+        .vector_narrow_trim::<m![1 # 4]>()
+        .vector_intra_slice_reduce::<Lq, m![H % 120 = 96], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_widen_pad::<m![1 # 8]>()
+        .vector_inter_slice_reduce::<Rows, m![H % 120 = 96]>(InterSliceReduceOpF32::Add)
         .vector_final()
+        .cast::<bf16, m![1 # 16]>()
+        .transpose::<m![H % 120 = 96 / 4], m![H % 120 = 96 % 4 # 16]>()
         .commit_trim::<m![H % 120 = 96 % 4]>()
         .commit_view(y.view_mut().tile::<m![H % 120], 96, m![H % 120 = 96 #{!} 120]>(offset));
 }
@@ -126,42 +112,29 @@ pub(crate) fn contract_tile_b(
     ctx: &mut Context,
     weight: &WeightTileB,
     x_trf: &TrfTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq], m![Qs % 256]>,
-    scale: &VrfTensor<f32, Chip, OutputClusters, Rows, m![H % 120 = 24]>,
-    y: &mut DmTensor<f32, Chip, OutputClusters, Rows, m![H % 120]>,
+    y: &mut DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]>,
     offset: usize,
 ) {
     // The sixteen column partials of a row group meet in the inter-slice reduce, still f32. The
     // transpose lays the result out as (4 rows) x (levels) x (row in 4) so that the next pass can
     // add the levels up along time and keep four rows per packet.
-    let y_levels: DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120 = 24 / 4, Lq, H % 120 = 24 % 4]> = ctx
-        .main
+    ctx.main
         .begin(weight.view())
         .fetch::<m![H % 120 = 24, Qs / 32 % 8], m![Qs % 32]>()
         .collect::<m![H % 120 = 24, Qs / 32 % 8], m![Qs % 32]>()
         .contract_outer::<m![H % 120 = 24, Qs / 64 % 4], m![Qs % 64], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![H % 120 = 24]>()
-        .contract_lane::<m![H % 120 = 24], m![Lq # 8]>(LaneMode::Interleaved)
-        .vector_init()
-        .vector_inter_slice_reduce::<Rows, m![H % 120 = 24]>(InterSliceReduceOpF32::Add)
-        .vector_final()
-        .cast::<bf16, m![Lq # 16]>()
-        .transpose::<m![H % 120 = 24 / 4, Lq], m![H % 120 = 24 % 4 # 16]>()
-        .commit_trim::<m![H % 120 = 24 % 4]>()
-        .commit();
-
-    ctx.main
-        .begin(y_levels.view())
-        .fetch::<m![H % 120 = 24 / 4], m![Lq, H % 120 = 24 % 4]>()
-        .fetch_cast::<f32>()
-        .collect::<m![H % 120 = 24 / 4], m![Lq, H % 120 = 24 % 4]>()
+        .contract_lane::<m![H % 120 = 24, Lq], m![1 # 8]>(LaneMode::Sequential)
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![H % 120 = 24 / 4, Lq], m![H % 120 = 24 % 4]>()
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), scale)
-        .vector_intra_slice_reduce::<Lq, m![H % 120 = 24 / 4], m![H % 120 = 24 % 4]>(IntraSliceReduceOpF32::Add)
-        .vector_widen_pad::<m![H % 120 = 24 % 4 # 8]>()
+        .vector_narrow_trim::<m![1 # 4]>()
+        .vector_intra_slice_reduce::<Lq, m![H % 120 = 24], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_widen_pad::<m![1 # 8]>()
+        .vector_inter_slice_reduce::<Rows, m![H % 120 = 24]>(InterSliceReduceOpF32::Add)
         .vector_final()
+        .cast::<bf16, m![1 # 16]>()
+        .transpose::<m![H % 120 = 24 / 4], m![H % 120 = 24 % 4 # 16]>()
         .commit_trim::<m![H % 120 = 24 % 4]>()
         .commit_view(y.view_mut().tile::<m![H % 120], 24, m![H % 120 = 24 #{!} 120]>(offset));
 }
@@ -172,9 +145,7 @@ pub(crate) fn project_quantised(
     x: &DmTensor<bf16, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]>,
     weight_a: &WeightTileA,
     weight_b: &WeightTileB,
-    scale_a: &VrfTensor<f32, Chip, OutputClusters, Rows, m![H % 120 = 96]>,
-    scale_b: &VrfTensor<f32, Chip, OutputClusters, Rows, m![H % 120 = 24]>,
-) -> DmTensor<f32, Chip, OutputClusters, Rows, m![H % 120]> {
+) -> DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]> {
     // f8 x f8 contraction: no decode table, and under a third of the device time of the
     // table-fused one. x is not an f8 tensor, so it goes in as two f8 levels, one TRF lane each:
     // q0 = f8(16x) and q1 = f8(16x - q0). That is EXACT for a bf16 x: q0 rounds to 4 significant
@@ -212,9 +183,9 @@ pub(crate) fn project_quantised(
         .to_trf();
 
 
-    let mut y: DmTensor<f32, Chip, OutputClusters, Rows, m![H % 120]> = DmTensor::new();
-    contract_tile_a(ctx, weight_a, &x_trf, scale_a, &mut y, 0);
-    contract_tile_b(ctx, weight_b, &x_trf, scale_b, &mut y, 96);
+    let mut y: DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]> = DmTensor::new();
+    contract_tile_a(ctx, weight_a, &x_trf, &mut y, 0);
+    contract_tile_b(ctx, weight_b, &x_trf, &mut y, 96);
 
     y
 }
@@ -230,21 +201,7 @@ pub(crate) fn project_normalize_add(
     // The three per-row operands of the tail: loaded and parked in the VRF up front.
     // The channel scale is applied where the levels are added up, tile by tile. That is also what
     // makes the scheduler load it BEFORE the second weight tile instead of into the tail.
-    let scale: DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]> = weight_scale.to_dm(&mut ctx.tdma);
-    let scale_a: VrfTensor<f32, Chip, OutputClusters, Rows, m![H % 120 = 96]> = ctx
-        .sub
-        .begin(scale.view().tile::<m![H % 120], 96, m![H % 120 = 96 # 120]>(0))
-        .fetch::<m![1], m![H % 120 = 96]>()
-        .fetch_cast::<f32>()
-        .collect::<m![H % 120 = 96 / 8], m![H % 120 = 96 % 8]>()
-        .to_vrf();
-    let scale_b: VrfTensor<f32, Chip, OutputClusters, Rows, m![H % 120 = 24]> = ctx
-        .sub
-        .begin(scale.view().tile::<m![H % 120], 24, m![H % 120 = 24 # 120]>(96))
-        .fetch::<m![1], m![H % 120 = 24]>()
-        .fetch_cast::<f32>()
-        .collect::<m![H % 120 = 24 / 8], m![H % 120 = 24 % 8]>()
-        .to_vrf();
+    let scale_vrf = to_vrf_120(ctx, weight_scale);
     let rms_weight_vrf = to_vrf_120(ctx, rms_weight);
     let residual_vrf = to_vrf_120(ctx, residual_hbm);
 
@@ -264,20 +221,23 @@ pub(crate) fn project_normalize_add(
     let x: DmTensor<bf16, Chip, OutputClusters, m![H / 120 % 16, Ns, Gs], m![Ds]> = x.to_dm(&mut ctx.tdma);
     let x: DmTensor<bf16, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]> = unsafe { x.reshape() };
 
-    let y = project_quantised(ctx, &x, &weight_a, &weight_b, &scale_a, &scale_b);
+    let y = project_quantised(ctx, &x, &weight_a, &weight_b);
 
     // Sum of squares of the 120 scaled rows each row slice holds.
     let mut sum_squares: DmTensor<f32, Chip, OutputClusters, Rows, m![Ob, 1 # 8]> = DmTensor::new();
     ctx.main
         .begin(y.view())
-        .fetch::<m![H / 8 % 15], m![H % 8]>()
+        .fetch::<m![1], m![H % 120]>()
+        .fetch_cast::<f32>()
         .collect::<m![H / 8 % 15], m![H % 8]>()
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_split::<m![H / 4 % 30], m![H % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &scale_vrf)
         .vector_stash()
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), Stash)
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul1), Stash)
         .vector_intra_slice_reduce::<H, m![1], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_fp_div(H_F32)
         .vector_widen_pad::<m![1 # 8]>()
         .vector_final()
         .commit_trim::<m![1 # 8]>()
@@ -291,36 +251,24 @@ pub(crate) fn project_normalize_add(
     let partials: DmTensor<f32, Chip, m![Oc], RowsReplicated, m![Ob, Ow]> = unsafe { sum_squares.reshape() };
     let partials: HbmTensor<f32, Chip, m![Oc, Or, Ob, Ow]> = partials.to_hbm(&mut ctx.tdma);
     let partials: HbmTensor<f32, Chip, m![Og, Ob, Ow]> = unsafe { partials.reshape() };
-    let partials: DmTensor<f32, Chip, m![Ok], RowsReplicated, m![Og, Ob = 1, Ow]> = partials
+    // One partial per slice, every ring of 32 adjacent slices holds all 32 of them (eight rings per
+    // cluster), so ONE pass all-reduces them, adds the epsilon and takes the root -- in every slice,
+    // the row slices included.
+    let partials: DmTensor<f32, Chip, m![Ok], m![Orep, Og], m![Ob = 1, Ow]> = partials
         .view()
         .tile::<m![Ob], 1, m![Og, Ob = 1 # 8, Ow]>(0)
         .to_dm(&mut ctx.tdma);
-    let partials: DmTensor<f32, Chip, m![Ok], RowsReplicated, m![Og, 1 # 8]> = unsafe { partials.reshape() };
-
-    let mean_square: DmTensor<f32, Chip, m![Ok], RowsReplicated, m![1 # 8]> = ctx
+    let partials: DmTensor<f32, Chip, m![Ok], m![Orep, Og], m![1 # 8]> = unsafe { partials.reshape() };
+    let rms: DmTensor<f32, Chip, m![Ok], m![Orep, Oring], m![1 # 8]> = ctx
         .main
         .begin(partials.view())
-        .fetch::<m![Og], m![1 # 8]>()
-        .collect::<m![Og], m![1 # 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_trim::<m![1 # 4]>()
-        .vector_intra_slice_reduce::<Og, m![1], m![1 # 4]>(IntraSliceReduceOpF32::Add)
-        .vector_fp_div(H_F32)
-        .vector_widen_pad::<m![1 # 8]>()
-        .vector_clip(ClipBinaryOpF32::Add, EPS_SCALED)
-        .vector_final()
-        .commit_trim::<m![1 # 8]>()
-        .commit();
-
-    let rms: DmTensor<f32, Chip, m![Ok], RowsReplicated, m![1 # 8]> = ctx
-        .main
-        .begin(mean_square.view())
         .fetch::<m![1], m![1 # 8]>()
         .collect::<m![1], m![1 # 8]>()
         .vector_init()
+        .vector_inter_slice_reduce::<m![Orep, Oring], m![1]>(InterSliceReduceOpF32::Add)
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_trim::<m![1 # 4]>()
+        .vector_fp_binary(FpBinaryOp::AddF, EPS_SCALED)
         .vector_fp_unary(FpUnaryOp::Sqrt)
         .vector_widen_pad::<m![1 # 8]>()
         .vector_final()
@@ -337,11 +285,13 @@ pub(crate) fn project_normalize_add(
     let out: DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]> = ctx
         .main
         .begin(y.view())
-        .fetch::<m![H / 8 % 15], m![H % 8]>()
+        .fetch::<m![1], m![H % 120]>()
+        .fetch_cast::<f32>()
         .collect::<m![H / 8 % 15], m![H % 8]>()
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_split::<m![H / 4 % 30], m![H % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &scale_vrf)
         .vector_fp_binary(FpBinaryOp::DivF, &rms_vrf)
         .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul1), &rms_weight_vrf)
         .vector_widen_concat::<m![H / 8 % 15], m![H % 8]>()
