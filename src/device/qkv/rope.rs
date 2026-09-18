@@ -119,21 +119,6 @@ pub(crate) fn apply_rope(
         .commit_trim::<m![Ds = 128 % 16]>()
         .commit_view(rotate_half_k.view_mut().tile::<m![Ds], 128, m![Ds = 128 #{!} 256]>(0));
 
-    let q_cos: DmTensor<f32, Chip, Cluster, Slice, m![Gs, Ds]> = ctx
-        .main
-        .begin(q.view())
-        .fetch::<m![Gs, Ds / 16], m![Ds % 16]>()
-        .fetch_cast::<f32>()
-        .collect::<m![Gs, Ds / 8], m![Ds % 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![Gs, Ds / 4], m![Ds % 4]>()
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &cos_vrf)
-        .vector_widen_concat::<m![Gs, Ds / 8], m![Ds % 8]>()
-        .vector_final()
-        .commit_trim::<m![Ds % 8]>()
-        .commit();
-
     let q_sin: DmTensor<f32, Chip, Cluster, Slice, m![Gs, Ds]> = ctx
         .main
         .begin(rotate_half_q.view())
@@ -156,31 +141,22 @@ pub(crate) fn apply_rope(
         .collect::<m![Gs, Ds / 8], m![Ds % 8]>()
         .to_vrf();
 
+    // fewer-ops E1: the cos multiply rides the add pass (the q_cos f32 commit is gone: one
+    // tensor-unit pass and one 2 KB DM tensor less, same arithmetic).
     let result_q: DmTensor<bf16, Chip, Cluster, Slice, m![Gs, Ds]> = ctx
         .main
-        .begin(q_cos.view())
-        .fetch::<m![Gs, Ds / 8], m![Ds % 8]>()
+        .begin(q.view())
+        .fetch::<m![Gs, Ds / 16], m![Ds % 16]>()
+        .fetch_cast::<f32>()
         .collect::<m![Gs, Ds / 8], m![Ds % 8]>()
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_split::<m![Gs, Ds / 4], m![Ds % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &cos_vrf)
+        .vector_widen_concat::<m![Gs, Ds / 8], m![Ds % 8]>()
         .vector_clip(ClipBinaryOpF32::Add, &q_sin_vrf)
         .vector_final()
         .cast::<bf16, m![Ds % 8 # 16]>()
-        .commit_trim::<m![Ds % 8]>()
-        .commit();
-
-    let k_cos: DmTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
-        .main
-        .begin(k.view())
-        .fetch::<m![Ds / 16], m![Ds % 16]>()
-        .fetch_cast::<f32>()
-        .collect::<m![Ds / 8], m![Ds % 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![Ds / 4], m![Ds % 4]>()
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &cos_vrf)
-        .vector_widen_concat::<m![Ds / 8], m![Ds % 8]>()
-        .vector_final()
         .commit_trim::<m![Ds % 8]>()
         .commit();
 
@@ -208,11 +184,15 @@ pub(crate) fn apply_rope(
 
     let result_k: DmTensor<bf16, Chip, Cluster, Slice, m![Ds]> = ctx
         .main
-        .begin(k_cos.view())
-        .fetch::<m![Ds / 8], m![Ds % 8]>()
+        .begin(k.view())
+        .fetch::<m![Ds / 16], m![Ds % 16]>()
+        .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_split::<m![Ds / 4], m![Ds % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &cos_vrf)
+        .vector_widen_concat::<m![Ds / 8], m![Ds % 8]>()
         .vector_clip(ClipBinaryOpF32::Add, &k_sin_vrf)
         .vector_final()
         .cast::<bf16, m![Ds % 8 # 16]>()

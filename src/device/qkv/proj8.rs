@@ -6,7 +6,7 @@
 use furiosa_opt_std::prelude::*;
 
 use super::pool::{SmallPool, Vrf1, Vrf2};
-use super::{HeadCopy4, HeadCopyClusters, HeadCopySlices, KeyValueRowSlices, KvRowsByHead, Pool, QueryRowSlices, QueryRowsByHead, Term};
+use super::{HeadCopy4, HeadCopyClusters, HeadCopySlices, KeyValueRowSlices, Kv, KvRowsByHead, Pool, QueryRowSlices, QueryRowsByHead, Term};
 use crate::Chip;
 use super::HeadClusters;
 use crate::axes::{Ds, Gs, H, Ns, Ps, Qs};
@@ -50,16 +50,31 @@ pub(crate) fn project_query(
         .commit()
 }
 
+/// The contraction of a weight tensor whose DM address is an ODD multiple of 256 bytes takes
+/// 4.9K device cycles instead of 2.1K (measured across 37 traces: every build whose V weight sits
+/// at a 512-aligned DM offset contracts in 2.1K, the two whose V weight sits at a 256-odd offset
+/// take 4.8-4.9K). The allocator puts the V weight at such an offset in this build, so a K/V weight
+/// is loaded into ONE TILE of a tensor twice its size: tile 1 starts 15,360 = 30 x 512 bytes into
+/// the tensor, so it is 512-aligned whenever the tensor's own 256-aligned base is, and the pair of
+/// tiles shifts everything the allocator packs after it by a multiple of 512. Tile 0 of V's tensor
+/// (and tile 1 of K's) is never written or read: 15 KB of the 512 KB of a slice.
+type KvPad = DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Kv, Ds / 8 % 4, H]>;
+type KvTile<'l> = DmTensorView<'l, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Kv = 1 # 2, Ds / 8 % 4, H]>;
+
 fn contract_kv_matrix(
     ctx: &mut Context,
     x_trf: &KvOperand,
     weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
+    tile: usize,
+    store: &mut KvPad,
 ) -> DmTensor<bf16, Chip, HeadCopyClusters, m![HeadCopy4, Ds / 4], m![Ds % 4]> {
-    let weight: HbmTensorView<'_, f8e4m3, Chip, m![Ns, Ds, H]> = unsafe { weight.view().reshape() };
-    let weight_f8: DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 8 % 4, H]> =
-        weight.to_dm(&mut ctx.tdma);
+    let weight: HbmTensorView<'_, f8e4m3, Chip, m![Kv = 1, Ns, Ds, H]> = unsafe { weight.view().reshape() };
+    weight.to_dm_view(
+        &mut ctx.tdma,
+        store.view_mut().tile::<m![Kv], 1, m![Kv = 1 #{!} 2, Ds / 8 % 4, H]>(tile),
+    );
 
-    let contraction = contract_key_value(ctx, &weight_f8, x_trf);
+    let contraction = contract_key_value(ctx, store.view().tile::<m![Kv], 1, m![Kv = 1 # 2, Ds / 8 % 4, H]>(tile), x_trf);
     // Relabel only: Ps = (Ns, Ds) row-major: cluster Ns/4, slice (Ns%4, Ds/4), in-slice Ds%4.
     unsafe { contraction.reshape() }
 }
@@ -70,8 +85,9 @@ fn project_value_matrix(
     x_trf: &KvOperand,
     weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     weight_scale_vrf: &Vrf1,
+    store: &mut KvPad,
 ) -> DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> {
-    let contraction = contract_kv_matrix(ctx, x_trf, weight);
+    let contraction = contract_kv_matrix(ctx, x_trf, weight, 1, store);
     ctx.main
         .begin(contraction.view())
         .fetch::<m![1], m![Ds % 4]>()
@@ -98,8 +114,9 @@ fn project_key_matrix(
     weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     weight_scale_vrf: &Vrf1,
     pool: &mut SmallPool,
+    store: &mut KvPad,
 ) {
-    let contraction = contract_kv_matrix(ctx, x_trf, weight);
+    let contraction = contract_kv_matrix(ctx, x_trf, weight, 0, store);
     let contraction: DmTensorView<'_, bf16, Chip, HeadCopyClusters, m![HeadCopy4, Ds / 4], m![Pool = 1, Ds % 4]> =
         unsafe { contraction.view().reshape() };
     ctx.main
@@ -131,8 +148,10 @@ pub(crate) fn project_key_value(
 ) -> DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> {
     let x_trf = key_value_operand(ctx, x);
 
-    project_key_matrix(ctx, &x_trf, k_weight, k_weight_scale, pool);
-    project_value_matrix(ctx, &x_trf, v_weight, v_weight_scale)
+    let mut k_store: KvPad = DmTensor::new();
+    let mut v_store: KvPad = DmTensor::new();
+    project_key_matrix(ctx, &x_trf, k_weight, k_weight_scale, pool, &mut k_store);
+    project_value_matrix(ctx, &x_trf, v_weight, v_weight_scale, &mut v_store)
 }
 
 /// The two f8 terms of the hidden state, one per TRF lane: the contraction multiplies the weight
@@ -206,13 +225,13 @@ fn contract_query(
 
 fn contract_key_value(
     ctx: &mut Context,
-    weight_f8: &DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 8 % 4, H]>,
+    weight_f8: KvTile<'_>,
     x_trf: &KvOperand,
 ) -> DmTensor<bf16, Chip, KeyValueClusters, KvRowsByHead, m![Ds % 4]> {
     let sums: DmTensor<f32, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 8 % 4, 1 # 8]> = ctx
         .main
-        .begin(weight_f8.view())
-        .fetch::<m![Ds / 8 % 4, H / 32], m![H % 32]>()
+        .begin(weight_f8)
+        .fetch::<m![Kv = 1, Ds / 8 % 4, H / 32], m![H % 32]>()
         .collect::<m![Ds / 8 % 4, H / 32], m![H % 32]>()
         .contract_outer::<m![Ds / 8 % 4, H / 32], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()

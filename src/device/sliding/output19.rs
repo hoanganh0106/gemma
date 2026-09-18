@@ -11,7 +11,9 @@ use crate::axes::{Ds, Gs, H, Ns, Qs};
 use crate::device::layout::{OutputClusters, SlidingOutputColumns, SlidingOutputRows};
 use crate::{Chip, EPS};
 
-axes![Lq = 2, Vc = 2, Vr = 16];
+axes![Lq = 2, Vr = 16, Zp = 3];
+/// The tail runs on cluster 0 only (the cluster that stores): the final sync is then the cheap kind.
+type Vc = m![1 # 2];
 
 const H_F32: f32 = H::SIZE as f32;
 const X_SCALE: f32 = 16.0;
@@ -21,18 +23,35 @@ const EPS_SCALED: f32 = EPS * X_SCALE * X_SCALE;
 type Levels = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq, Qs % 256]>;
 
 pub(crate) type Rows = SlidingOutputRows;
-/// The tail's home: slices 0..16 of cluster 0 only (`m![1 # 2]`), slice g holding rows 240g..240g+240.
+/// The tail's home: slices 0..16 of both clusters (replicated), slice g holding rows 240g..240g+240.
 pub(crate) type Tail = m![1 # 16, H / 240];
-pub(crate) type TailDm<D> = DmTensor<D, Chip, m![1 # 2], Tail, m![H % 240]>;
-pub(crate) type TailVrf = VrfTensor<f32, Chip, m![1 # 2], Tail, m![H % 240]>;
+pub(crate) type TailDm<D> = DmTensor<D, Chip, Vc, Tail, m![H % 240]>;
+pub(crate) type TailVrf = VrfTensor<f32, Chip, Vc, Tail, m![H % 240]>;
 
-pub(crate) fn tail_operand(ctx: &mut Context, v: &HbmTensor<bf16, Chip, m![H]>) -> TailVrf {
-    let dm: TailDm<bf16> = v.to_dm(&mut ctx.tdma);
+/// The three per-row operands of the tail (residual, channel scale, RMSNorm weight) share ONE DM
+/// tensor. The point is the allocator: the pool is born with the FIRST load, which happens while the
+/// projection `z` is still alive, so the pool cannot be placed on z's address. In output9 each
+/// operand had its own tensor and the one loaded right after the hop store landed exactly on the
+/// region z had just freed -- z is written by both clusters and the tail reads in one, so the
+/// compiler guarded that reuse with a second Core wait (`DramReuse`, rlir `SyncTarget(DramReuse(43))`,
+/// tensor 43 at address 524288 = z's address).
+pub(crate) type Pool = DmTensor<bf16, Chip, Vc, Tail, m![Zp, H % 240]>;
+pub(crate) type PoolVrf = VrfTensor<f32, Chip, Vc, Tail, m![Zp = 1, H % 240]>;
+
+/// Loads `v` into slot `slot` of the pool. The pool's slots are written in program order (one DM
+/// tensor = one version chain), so the caller lists them in the order it wants them issued.
+pub(crate) fn pool_load(ctx: &mut Context, pool: &mut Pool, v: &HbmTensor<bf16, Chip, m![H]>, slot: usize) {
+    v.view()
+        .to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Zp], 1, m![Zp = 1 #{!} 3, H % 240]>(slot));
+}
+
+/// Slot `slot` of the pool in the VRF, ready as a per-row operand of the tail's passes.
+pub(crate) fn pool_vrf(ctx: &mut Context, pool: &Pool, slot: usize) -> PoolVrf {
     ctx.sub
-        .begin(dm.view())
-        .fetch::<m![1], m![H % 240]>()
+        .begin(pool.view().tile::<m![Zp], 1, m![Zp = 1 # 3, H % 240]>(slot))
+        .fetch::<m![Zp = 1], m![H % 240]>()
         .fetch_cast::<f32>()
-        .collect::<m![H / 8 % 30], m![H % 8]>()
+        .collect::<m![Zp = 1, H / 8 % 30], m![H % 8]>()
         .to_vrf()
 }
 
@@ -170,21 +189,27 @@ pub(crate) fn project_normalize_add(
     contract_tile_a(ctx, &weight_a, &x_trf, &mut z, 0);
     contract_tile_b(ctx, &weight_b, &x_trf, &mut z, 104);
 
-    // The residual, loaded here so that the DMA has work while the small tile is contracted.
-    let residual = tail_operand(ctx, residual_hbm);
+    // The residual, loaded here so that the DMA has work while the small tile is contracted; it
+    // opens the pool, which is what keeps the two loads behind the store off z's address.
+    let mut pool: Pool = DmTensor::new();
+    pool_load(ctx, &mut pool, residual_hbm, 0);
 
     // The hop: all 3,840 projected values go to HBM in row order (the store is the same shape as
     // the kernel's output store) and come back, 240 consecutive rows per slice, into slices 0..16.
     let mut hop: HbmTensor<bf16, Chip, m![H]> = HbmTensor::new();
     z.view().to_hbm_view(&mut ctx.tdma, hop.view_mut());
 
-    let scale = tail_operand(ctx, weight_scale);
-    let rms_weight = tail_operand(ctx, rms_weight);
+    // These two are what the model puts between the store and the reload: they cover the sync.
+    pool_load(ctx, &mut pool, weight_scale, 1);
+    pool_load(ctx, &mut pool, rms_weight, 2);
+    let residual = pool_vrf(ctx, &pool, 0);
+    let scale = pool_vrf(ctx, &pool, 1);
+    let rms_weight = pool_vrf(ctx, &pool, 2);
 
     let z_tail: TailDm<bf16> = hop.to_dm(&mut ctx.tdma);
 
     // Sum of squares of the 240 scaled values of each slice, over H.
-    let partial: DmTensor<f32, Chip, m![1 # 2], Tail, m![1 # 8]> = ctx
+    let partial: DmTensor<f32, Chip, Vc, Tail, m![1 # 8]> = ctx
         .main
         .begin(z_tail.view())
         .fetch::<m![1], m![H % 240]>()
@@ -204,7 +229,7 @@ pub(crate) fn project_normalize_add(
         .commit();
 
     // Ring of sixteen: the mean square in every slice, epsilon, root.
-    let rms: DmTensor<f32, Chip, m![1 # 2], m![1 # 16, Vr], m![1 # 8]> = ctx
+    let rms: DmTensor<f32, Chip, Vc, m![1 # 16, Vr], m![1 # 8]> = ctx
         .main
         .begin(partial.view())
         .fetch::<m![1], m![1 # 8]>()
@@ -219,8 +244,8 @@ pub(crate) fn project_normalize_add(
         .vector_final()
         .commit_trim::<m![1 # 8]>()
         .commit();
-    let rms: DmTensor<f32, Chip, m![1 # 2], Tail, m![1 # 8]> = unsafe { rms.reshape() };
-    let rms_vrf: VrfTensor<f32, Chip, m![1 # 2], Tail, m![1 # 8]> =
+    let rms: DmTensor<f32, Chip, Vc, Tail, m![1 # 8]> = unsafe { rms.reshape() };
+    let rms_vrf: VrfTensor<f32, Chip, Vc, Tail, m![1 # 8]> =
         ctx.sub.begin(rms.view()).fetch::<m![1], m![1 # 8]>().collect::<m![1], m![1 # 8]>().to_vrf();
 
     let out: TailDm<bf16> = ctx
