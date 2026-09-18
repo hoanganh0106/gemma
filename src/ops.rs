@@ -58,12 +58,13 @@ pub fn sliding_project_qkv(
 ) {
     use crate::device::qkv::{self, Term};
 
-    // Every small load (row scales, head-norm weights, the parked RoPE rows) is a tile of ONE pool
-    // tensor: tile writes are chained in program order, so the DMA queue holds them in front of
-    // and between the weights with no tensor-unit pass to wait for, and the three weight loads
-    // run back to back. The RoPE hop's host sync hides under the first weight load.
+    // Every small load (row scales, head-norm weights, later the parked RoPE rows) is a tile of
+    // ONE pool tensor: tile writes are chained in program order and a tile read depends on the
+    // writes before it in program order. The RoPE rows are written LAST, after K's head has been
+    // parked in the pool by the K projection, so their reload is chained behind K's contraction:
+    // the scheduler lists it after the Q weight load, and the hop's host sync hides under Q.
     let rope_rows = qkv::rope::load_tables(ctx, rope_offset, cos, sin);
-    let pool = qkv::pool::load(ctx, q_weight_scale, k_weight_scale, v_weight_scale, q_rms_weight, k_rms_weight, &rope_rows);
+    let mut pool = qkv::pool::load(ctx, q_weight_scale, k_weight_scale, v_weight_scale, q_rms_weight, k_rms_weight);
     let q_scale = qkv::pool::vrf2(ctx, &pool, qkv::pool::Q_SCALE);
     let k_scale = qkv::pool::vrf1(ctx, &pool, qkv::pool::K_SCALE);
     let v_scale = qkv::pool::vrf1(ctx, &pool, qkv::pool::V_SCALE);
@@ -79,14 +80,18 @@ pub fn sliding_project_qkv(
     // Each cluster keeps the four heads it projected, one head per slice, through the head
     // norms and RoPE. The two halves meet only in HBM: q_out and the KV cache are chip-wide.
     let q = qkv::proj8::project_query(ctx, &x, q_weight, &q_scale);
-    let (k, v) = qkv::proj8::project_key_value(ctx, &x, k_weight, v_weight, &k_scale, &v_scale);
+    let v = qkv::proj8::project_key_value(ctx, &x, k_weight, v_weight, &k_scale, &v_scale, &mut pool);
 
     // Relabel only (`Pool = 2` is the query-group axis `Gs`).
     let q: DmTensor<bf16, Chip, qkv::HeadCopyClusters, qkv::HeadCopySlices, m![Gs, Ds]> = unsafe { q.reshape() };
 
     let q = qkv::headnorm::normalize_query(ctx, &q, &q_norm);
-    let k = qkv::headnorm::normalize_key(ctx, &k, &k_norm);
+    let k = qkv::headnorm::normalize_key(ctx, &pool, &k_norm);
     let v = qkv::headnorm::normalize_value(ctx, &v);
+
+    // Written after K's head and after every other read of the pool (program order): the reload
+    // is chained behind K's contraction and gates only the RoPE passes.
+    qkv::pool::load_rope(ctx, &mut pool, &rope_rows);
 
     let (q, k) = qkv::rope::apply_rope(ctx, &q, &k, &pool);
 
@@ -235,7 +240,7 @@ pub fn decoder_feedforward(
 ) {
     // RMSNorm on real copies of the pieces, two exact f8 terms, all-gathered into every slice;
     // up/gate as whole rows, block dequantization inside the f8 contraction (device/shared/ffn6.rs).
-    let (x, residual_spread) = shared::ffn6::feedforward(
+    let (x, residual_spread) = shared::ffn7::feedforward(
         ctx,
         &*residual_hbm,
         pre_ff_rms_weight,
@@ -252,7 +257,7 @@ pub fn decoder_feedforward(
 
     // Stay divided over eight slices to the end, and do the add and the gate in one pass.
     let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
-        shared::ffn6::normalize_add_gate_in_place(ctx, &x, post_ff_rms_weight, &residual_spread, layer_scalar);
+        shared::ffn7::normalize_add_gate_in_place(ctx, &x, post_ff_rms_weight, &residual_spread, layer_scalar);
     residual.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
 

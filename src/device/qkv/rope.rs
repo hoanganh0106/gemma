@@ -59,7 +59,7 @@ pub(crate) fn apply_rope(
 ) {
     let cos_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
         .sub
-        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 8, Ds]>(super::pool::ROPE))
+        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 10, Ds]>(super::pool::ROPE))
         .fetch::<m![Pool = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
@@ -67,7 +67,7 @@ pub(crate) fn apply_rope(
 
     let sin_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Ds]> = ctx
         .sub
-        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 8, Ds]>(super::pool::ROPE + 1))
+        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 10, Ds]>(super::pool::ROPE + 1))
         .fetch::<m![Pool = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()

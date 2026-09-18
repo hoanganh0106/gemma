@@ -18,17 +18,20 @@ pub(crate) const K_SCALE: usize = 1;
 pub(crate) const K_NORM: usize = 2;
 pub(crate) const Q_NORM: usize = 3;
 pub(crate) const Q_SCALE: usize = 4;
-pub(crate) const ROPE: usize = 6;
+/// K's gathered, scaled head vector (one per head slice): written by the K projection's last pass.
+pub(crate) const K_HEAD: usize = 6;
+/// The parked RoPE rows, reloaded AFTER `K_HEAD` is written.
+pub(crate) const ROPE: usize = 8;
 
 fn load_per_head(ctx: &mut Context, pool: &mut SmallPool, scale: &HbmTensor<bf16, Chip, m![Ps]>, index: usize) {
     // Ps = (Ns, Ds) row-major and Ns = (cluster, head-in-cluster): relabel only.
     let scale = unsafe { scale.view().reshape::<Chip, m![Dummy2, HeadCopy4, Pool = 1, Ds]>() };
-    scale.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 1, m![Pool = 1 #{!} 8, Ds]>(index));
+    scale.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 1, m![Pool = 1 #{!} 10, Ds]>(index));
 }
 
 fn load_shared(ctx: &mut Context, pool: &mut SmallPool, weight: &HbmTensor<bf16, Chip, m![Ds]>, index: usize) {
     let weight = unsafe { weight.view().reshape::<Chip, m![Pool = 1, Ds]>() };
-    weight.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 1, m![Pool = 1 #{!} 8, Ds]>(index));
+    weight.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 1, m![Pool = 1 #{!} 10, Ds]>(index));
 }
 
 /// `order` = the chain order of the six loads (program order of the tile writes).
@@ -40,28 +43,39 @@ pub(crate) fn load(
     v_scale: &HbmTensor<bf16, Chip, m![Ps]>,
     q_norm: &HbmTensor<bf16, Chip, m![Ds]>,
     k_norm: &HbmTensor<bf16, Chip, m![Ds]>,
-    rope_rows: &HbmTensor<bf16, Chip, m![RopeTable, Ds]>,
 ) -> SmallPool {
     let mut pool: SmallPool = DmTensor::new();
     load_per_head(ctx, &mut pool, v_scale, V_SCALE);
-    load_per_head(ctx, &mut pool, k_scale, K_SCALE);
     load_shared(ctx, &mut pool, k_norm, K_NORM);
-    {
-        let rows = unsafe { rope_rows.view().reshape::<Chip, m![Pool = 2, Ds]>() };
-        rows.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 2, m![Pool = 2 #{!} 8, Ds]>(ROPE));
-    }
+    load_per_head(ctx, &mut pool, k_scale, K_SCALE);
     load_shared(ctx, &mut pool, q_norm, Q_NORM);
     {
         // Qs = (Ns, Gs, Ds): the two query groups of a head are tiles 4 and 5.
         let scale = unsafe { q_scale.view().reshape::<Chip, m![Dummy2, HeadCopy4, Pool = 2, Ds]>() };
-        scale.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 2, m![Pool = 2 #{!} 8, Ds]>(Q_SCALE));
+        scale.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 2, m![Pool = 2 #{!} 10, Ds]>(Q_SCALE));
     }
     pool
 }
 
+/// Reloads the parked RoPE rows into tiles `ROPE`, `ROPE + 1`. Call it AFTER the K projection has
+/// written tile `K_HEAD` and after every scale / norm VRF has been read: tile writes are chained in
+/// program order, so the reload is placed after K's contraction (after the K weight transfer, under
+/// which the hop's host sync then hides), and only the RoPE passes wait for it.
+pub(crate) fn load_rope(ctx: &mut Context, pool: &mut SmallPool, rope_rows: &HbmTensor<bf16, Chip, m![RopeTable, Ds]>) {
+    let rows = unsafe { rope_rows.view().reshape::<Chip, m![Pool = 2, Ds]>() };
+    rows.to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Pool], 2, m![Pool = 2 #{!} 10, Ds]>(ROPE));
+}
+
+/// One tile of the pool, for the passes that read a head vector parked there.
+pub(crate) type Tile<'l> = DmTensorView<'l, bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Pool = 1 # 10, Ds]>;
+
+pub(crate) fn tile(pool: &SmallPool, index: usize) -> Tile<'_> {
+    pool.view().tile::<m![Pool], 1, m![Pool = 1 # 10, Ds]>(index)
+}
+
 pub(crate) fn vrf1(ctx: &mut Context, pool: &SmallPool, index: usize) -> Vrf1 {
     ctx.sub
-        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 8, Ds]>(index))
+        .begin(pool.view().tile::<m![Pool], 1, m![Pool = 1 # 10, Ds]>(index))
         .fetch::<m![Pool = 1, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Ds / 8], m![Ds % 8]>()
@@ -70,7 +84,7 @@ pub(crate) fn vrf1(ctx: &mut Context, pool: &SmallPool, index: usize) -> Vrf1 {
 
 pub(crate) fn vrf2(ctx: &mut Context, pool: &SmallPool, index: usize) -> Vrf2 {
     ctx.sub
-        .begin(pool.view().tile::<m![Pool], 2, m![Pool = 2 # 8, Ds]>(index))
+        .begin(pool.view().tile::<m![Pool], 2, m![Pool = 2 # 10, Ds]>(index))
         .fetch::<m![Pool = 2, Ds / 16], m![Ds % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![Pool = 2, Ds / 8], m![Ds % 8]>()

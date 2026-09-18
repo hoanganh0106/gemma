@@ -18,45 +18,7 @@ const X_SCALE: f32 = 16.0;
 /// z stays 16 times too large to the end; the RMSNorm divides that out, given a matching epsilon.
 const EPS_SCALED: f32 = EPS * X_SCALE * X_SCALE;
 
-type Residual = DmTensor<f32, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]>;
 type Levels = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq, Qs % 256]>;
-
-/// Rounds the residual to f8 into lane `level`.
-fn quantise_level(ctx: &mut Context, residual: &Residual, levels: &mut Levels, level: usize) {
-    ctx.main
-        .begin(residual.view())
-        .fetch::<m![Qs / 8 % 32], m![Qs % 8]>()
-        .collect::<m![Qs / 8 % 32], m![Qs % 8]>()
-        .cast::<f8e4m3, m![Qs % 8 # 32]>()
-        .commit_trim::<m![Qs % 8]>()
-        .commit_view(levels.view_mut().tile::<m![Lq], 1, m![Lq = 1 #{!} 2, Qs % 256]>(level));
-}
-
-/// What lane `level` failed to represent: `residual - levels[level]`, exact in f32.
-fn residual_after(ctx: &mut Context, residual: &Residual, levels: &Levels, level: usize) -> Residual {
-    let residual_vrf: VrfTensor<f32, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]> = ctx
-        .sub
-        .begin(residual.view())
-        .fetch::<m![Qs / 8 % 32], m![Qs % 8]>()
-        .collect::<m![Qs / 8 % 32], m![Qs % 8]>()
-        .to_vrf();
-    let next: DmTensor<f32, Chip, OutputClusters, SlidingOutputColumns, m![Lq = 1, Qs % 256]> = ctx
-        .main
-        .begin(levels.view().tile::<m![Lq], 1, m![Lq = 1 # 2, Qs % 256]>(level))
-        .fetch::<m![Lq = 1], m![Qs % 256]>()
-        .fetch_cast::<f32>()
-        .collect::<m![Lq = 1, Qs / 8 % 32], m![Qs % 8]>()
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_split::<m![Lq = 1, Qs / 4 % 64], m![Qs % 4]>()
-        .vector_fp_binary(FpBinaryOp::SubF, &residual_vrf)
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), -1.0f32)
-        .vector_widen_concat::<m![Lq = 1, Qs / 8 % 32], m![Qs % 8]>()
-        .vector_final()
-        .commit_trim::<m![Qs % 8]>()
-        .commit();
-    unsafe { next.reshape() }
-}
 
 pub(crate) type Rows = SlidingOutputRows;
 /// The tail's home: slices 0..16 of both clusters (replicated), slice g holding rows 240g..240g+240.
@@ -126,15 +88,17 @@ pub(crate) fn contract_tile_b(ctx: &mut Context, weight: &WeightTileB, x_trf: &X
         .commit_view(z.view_mut().tile::<m![H % 120], 16, m![H % 120 = 16 #{!} 120]>(offset));
 }
 
-/// x as two exact f8 levels in the TRF: q0 = f8(16x), q1 = f8(16x - q0), exact for a bf16 x
-/// (see output5::project_quantised for the argument).
+/// x as two exact f8 levels in the TRF: q0 = f8(16x), q1 = f8(16x - q0). That is EXACT for a
+/// bf16 x: q0 keeps 4 significant bits, so 16x - q0 is an integer multiple of x's last bit with at
+/// most 4 significant bits of its own (see output5::project_quantised for the full argument).
+/// Three passes: q0 straight from x; q0 parked in the VRF; q1 = f8(16x - q0), the difference exact
+/// in f32.
 pub(crate) fn quantise_x(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]>,
 ) -> XTrf {
     let mut levels: Levels = DmTensor::new();
-    let r0: Residual = ctx
-        .main
+    ctx.main
         .begin(x.view())
         .fetch::<m![1], m![Qs % 256]>()
         .fetch_cast::<f32>()
@@ -145,11 +109,31 @@ pub(crate) fn quantise_x(
         .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), X_SCALE)
         .vector_widen_concat::<m![Qs / 8 % 32], m![Qs % 8]>()
         .vector_final()
+        .cast::<f8e4m3, m![Qs % 8 # 32]>()
         .commit_trim::<m![Qs % 8]>()
-        .commit();
-    quantise_level(ctx, &r0, &mut levels, 0);
-    let r1 = residual_after(ctx, &r0, &levels, 0);
-    quantise_level(ctx, &r1, &mut levels, 1);
+        .commit_view(levels.view_mut().tile::<m![Lq], 1, m![Lq = 1 #{!} 2, Qs % 256]>(0));
+    let q0_vrf: VrfTensor<f32, Chip, OutputClusters, SlidingOutputColumns, m![Lq = 1, Qs % 256]> = ctx
+        .sub
+        .begin(levels.view().tile::<m![Lq], 1, m![Lq = 1 # 2, Qs % 256]>(0))
+        .fetch::<m![Lq = 1], m![Qs % 256]>()
+        .fetch_cast::<f32>()
+        .collect::<m![Lq = 1, Qs / 8 % 32], m![Qs % 8]>()
+        .to_vrf();
+    ctx.main
+        .begin(x.view())
+        .fetch::<m![1], m![Qs % 256]>()
+        .fetch_cast::<f32>()
+        .collect::<m![Qs / 8 % 32], m![Qs % 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_split::<m![Qs / 4 % 64], m![Qs % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), X_SCALE)
+        .vector_fp_binary(FpBinaryOp::SubF, &q0_vrf)
+        .vector_widen_concat::<m![Qs / 8 % 32], m![Qs % 8]>()
+        .vector_final()
+        .cast::<f8e4m3, m![Qs % 8 # 32]>()
+        .commit_trim::<m![Qs % 8]>()
+        .commit_view(levels.view_mut().tile::<m![Lq], 1, m![Lq = 1 #{!} 2, Qs % 256]>(1));
     ctx.sub
         .begin(levels.view())
         .fetch::<m![Lq], m![Qs % 256]>()

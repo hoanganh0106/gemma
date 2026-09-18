@@ -1,7 +1,8 @@
 //! Everything `ops::sliding_project_qkv` runs on: the hidden state normalized on replicated
-//! pieces and all-gathered into every slice, whole Q/K/V weight rows strided over the row slices,
-//! every small load chained in one pool tensor (`pool`), and the head norms and RoPE done per KV
-//! head on the cluster that projected the head.
+//! pieces and all-gathered into every slice, whole Q/K/V weight rows strided 8-way over the row
+//! slices, every small load chained in one pool tensor (`pool`, which also parks K's head so that
+//! the RoPE rows' reload is ordered after K's contraction), and the head norms and RoPE done per
+//! KV head on the cluster that projected the head.
 use furiosa_opt_std::prelude::*;
 
 use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
@@ -12,7 +13,7 @@ pub(crate) mod proj8;
 pub(crate) mod rope;
 pub(crate) mod xnorm8;
 
-axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2, Pool = 8];
+axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2, Pool = 10];
 
 /// Whole weight rows, STRIDED over the row slices of a head: the innermost slice axis is the low
 /// digit of the row index (`Ds % 8`, `Ds % 4`), so consecutive HBM rows (3,840-byte, 256-aligned
@@ -21,7 +22,9 @@ axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2, Pool = 8]
 /// `proj8` puts them back in order with one `InterTranspose` pass after the contraction. The
 /// head axis stays OUTERMOST so the head gather remains a ring of 64.
 pub(crate) type QueryRowSlices = m![Ns % 4, Gs, Ds / 64, Ds % 8];
-pub(crate) type KeyValueRowSlices = m![Ns % 4, Ds / 16, Ds % 4];
+/// K/V: 8 consecutive rows go to 8 different slices, like Q. Slice `(Ds / 32, Ds % 4, Ds / 4 % 2)`
+/// holds rows `Ds / 8 % 4`; the sort swaps the `Ds % 4` slice sub-axis (stride 2) with the row axis.
+pub(crate) type KeyValueRowSlices = m![Ns % 4, Ds / 32, Ds % 4, Ds / 4 % 2];
 
 /// The two clusters named by KV head: cluster 0 owns heads 0..3, cluster 1 heads 4..7.
 /// `Qs = Ns*Gs*Ds` and `Ps = Ns*Ds` row-major, so `Qs / 2048 == Ps / 1024 == Ns / 4`.

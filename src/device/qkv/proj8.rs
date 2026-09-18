@@ -5,7 +5,7 @@
 //! cluster that projected them: no DMA gather, no HBM round trip.
 use furiosa_opt_std::prelude::*;
 
-use super::pool::{Vrf1, Vrf2};
+use super::pool::{SmallPool, Vrf1, Vrf2};
 use super::{HeadCopy4, HeadCopyClusters, HeadCopySlices, KeyValueRowSlices, KvRowsByHead, Pool, QueryRowSlices, QueryRowsByHead, Term};
 use crate::Chip;
 use super::HeadClusters;
@@ -50,21 +50,28 @@ pub(crate) fn project_query(
         .commit()
 }
 
-fn project_one_kv_matrix(
+fn contract_kv_matrix(
+    ctx: &mut Context,
+    x_trf: &KvOperand,
+    weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
+) -> DmTensor<bf16, Chip, HeadCopyClusters, m![HeadCopy4, Ds / 4], m![Ds % 4]> {
+    let weight: HbmTensorView<'_, f8e4m3, Chip, m![Ns, Ds, H]> = unsafe { weight.view().reshape() };
+    let weight_f8: DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 8 % 4, H]> =
+        weight.to_dm(&mut ctx.tdma);
+
+    let contraction = contract_key_value(ctx, &weight_f8, x_trf);
+    // Relabel only: Ps = (Ns, Ds) row-major: cluster Ns/4, slice (Ns%4, Ds/4), in-slice Ds%4.
+    unsafe { contraction.reshape() }
+}
+
+/// One pass gathers a head's 64 row slices into the head's slice and applies the row scale.
+fn project_value_matrix(
     ctx: &mut Context,
     x_trf: &KvOperand,
     weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     weight_scale_vrf: &Vrf1,
 ) -> DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> {
-    let weight: HbmTensorView<'_, f8e4m3, Chip, m![Ns, Ds, H]> = unsafe { weight.view().reshape() };
-    let weight_f8: DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 4 % 4, H]> =
-        weight.to_dm(&mut ctx.tdma);
-
-    let contraction = contract_key_value(ctx, &weight_f8, x_trf);
-    // Relabel only: Ps = (Ns, Ds) row-major: cluster Ns/4, slice (Ns%4, Ds/4), in-slice Ds%4.
-    let contraction: DmTensor<bf16, Chip, HeadCopyClusters, m![HeadCopy4, Ds / 4], m![Ds % 4]> =
-        unsafe { contraction.reshape() };
-
+    let contraction = contract_kv_matrix(ctx, x_trf, weight);
     ctx.main
         .begin(contraction.view())
         .fetch::<m![1], m![Ds % 4]>()
@@ -83,6 +90,36 @@ fn project_one_kv_matrix(
         .commit()
 }
 
+/// The same pass for K, committing the head vector into tile `pool::K_HEAD` of the pool: a tile
+/// write, chained in program order with the RoPE rows' reload that follows it.
+fn project_key_matrix(
+    ctx: &mut Context,
+    x_trf: &KvOperand,
+    weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
+    weight_scale_vrf: &Vrf1,
+    pool: &mut SmallPool,
+) {
+    let contraction = contract_kv_matrix(ctx, x_trf, weight);
+    let contraction: DmTensorView<'_, bf16, Chip, HeadCopyClusters, m![HeadCopy4, Ds / 4], m![Pool = 1, Ds % 4]> =
+        unsafe { contraction.view().reshape() };
+    ctx.main
+        .begin(contraction)
+        .fetch::<m![Pool = 1], m![Ds % 4]>()
+        .fetch_cast::<f32>()
+        .switch::<HeadCopySlices, m![Pool = 1, Ds / 4]>(SwitchConfig::Broadcast1 { slice1: 64, slice0: 1 })
+        .collect::<m![Pool = 1, Ds / 4], m![Ds % 4 # 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_trim::<m![Ds % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), weight_scale_vrf)
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul1), 1.0 / super::X_PRESCALE)
+        .vector_widen_pad::<m![Ds % 4 # 8]>()
+        .vector_final()
+        .cast::<bf16, m![Ds % 4 # 8 # 16]>()
+        .commit_trim::<m![Ds % 4]>()
+        .commit_view(pool.view_mut().tile::<m![Pool], 1, m![Pool = 1 #{!} 10, Ds]>(super::pool::K_HEAD));
+}
+
 pub(crate) fn project_key_value(
     ctx: &mut Context,
     x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
@@ -90,16 +127,12 @@ pub(crate) fn project_key_value(
     v_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     k_weight_scale: &Vrf1,
     v_weight_scale: &Vrf1,
-) -> (
-    DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
-    DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>,
-) {
+    pool: &mut SmallPool,
+) -> DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]> {
     let x_trf = key_value_operand(ctx, x);
 
-    let k = project_one_kv_matrix(ctx, &x_trf, k_weight, k_weight_scale);
-    let v = project_one_kv_matrix(ctx, &x_trf, v_weight, v_weight_scale);
-
-    (k, v)
+    project_key_matrix(ctx, &x_trf, k_weight, k_weight_scale, pool);
+    project_value_matrix(ctx, &x_trf, v_weight, v_weight_scale)
 }
 
 /// The two f8 terms of the hidden state, one per TRF lane: the contraction multiplies the weight
@@ -173,34 +206,34 @@ fn contract_query(
 
 fn contract_key_value(
     ctx: &mut Context,
-    weight_f8: &DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 4 % 4, H]>,
+    weight_f8: &DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 8 % 4, H]>,
     x_trf: &KvOperand,
 ) -> DmTensor<bf16, Chip, KeyValueClusters, KvRowsByHead, m![Ds % 4]> {
-    let sums: DmTensor<f32, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 4 % 4, 1 # 8]> = ctx
+    let sums: DmTensor<f32, Chip, KeyValueClusters, KeyValueRowSlices, m![Ds / 8 % 4, 1 # 8]> = ctx
         .main
         .begin(weight_f8.view())
-        .fetch::<m![Ds / 4 % 4, H / 32], m![H % 32]>()
-        .collect::<m![Ds / 4 % 4, H / 32], m![H % 32]>()
-        .contract_outer::<m![Ds / 4 % 4, H / 32], m![H % 32], _, _, _>(x_trf)
+        .fetch::<m![Ds / 8 % 4, H / 32], m![H % 32]>()
+        .collect::<m![Ds / 8 % 4, H / 32], m![H % 32]>()
+        .contract_outer::<m![Ds / 8 % 4, H / 32], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
-        .contract_time::<m![Ds / 4 % 4]>()
-        .contract_lane::<m![Ds / 4 % 4, Term], m![1 # 8]>(LaneMode::Sequential)
+        .contract_time::<m![Ds / 8 % 4]>()
+        .contract_lane::<m![Ds / 8 % 4, Term], m![1 # 8]>(LaneMode::Sequential)
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_trim::<m![1 # 4]>()
-        .vector_intra_slice_reduce::<Term, m![Ds / 4 % 4], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_intra_slice_reduce::<Term, m![Ds / 8 % 4], m![1 # 4]>(IntraSliceReduceOpF32::Add)
         .vector_widen_pad::<m![1 # 8]>()
         .vector_final()
         .commit_trim::<m![1 # 8]>()
         .commit();
 
-    let sorted: DmTensor<bf16, Chip, KeyValueClusters, m![Ns % 4, Ds / 16, Ds / 4 % 4], m![Ds % 4]> = ctx
+    let sorted: DmTensor<bf16, Chip, KeyValueClusters, m![Ns % 4, Ds / 32, Ds / 8 % 4, Ds / 4 % 2], m![Ds % 4]> = ctx
         .main
         .begin(sums.view())
-        .fetch::<m![Ds / 4 % 4], m![1 # 8]>()
-        .switch::<m![Ns % 4, Ds / 16, Ds / 4 % 4], m![Ds % 4]>(SwitchConfig::InterTranspose {
+        .fetch::<m![Ds / 8 % 4], m![1 # 8]>()
+        .switch::<m![Ns % 4, Ds / 32, Ds / 8 % 4, Ds / 4 % 2], m![Ds % 4]>(SwitchConfig::InterTranspose {
             slice1: 4,
-            slice0: 1,
+            slice0: 2,
             time0: 1,
         })
         .collect::<m![Ds % 4], m![1 # 8]>()
