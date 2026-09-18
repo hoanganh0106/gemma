@@ -1,9 +1,23 @@
-//! `ops::sliding_attention_output`: the projection as in output5 (two symmetric weight tiles, f8 x f8,
-//! the level lanes summed inside the contraction), but the cross-cluster hop carries the projected
-//! VALUES, not partial sums, and the whole tail runs in sixteen ADJACENT slices:
-//! every slice holds 240 consecutive rows of y, so the global mean square is one intra-slice reduce
-//! and one ring of sixteen, and the final pass, the residual add and the one store need nothing else.
-//! The hop's wait is meant to hide under the operand loads issued between the store and the reload.
+//! `ops::sliding_attention_output`: output19's projection and hop, with a RE-SHAPED TAIL.
+//!
+//! output19's tail after the hop reload is four serial Main/Sub commands whose total the device
+//! trace puts at 4,445 cycles with the DMA idle:
+//!   sum of squares (1,063) -> ring-16 reduce + eps + sqrt (661) -> `to_vrf` of the rms (439)
+//!   -> final pass `z * s / rms * w + r` (2,276).
+//! The last one is by far the biggest, and the only thing it does that the (same-length) sum of
+//! squares pass does not is the **`DivF` by the rms**. So this module removes the division from the
+//! final pass:
+//!   * the rms pass computes 1 / rms instead of rms. `t = ms + eps` is stashed before the square
+//!     root, and the FpDiv stage then divides the root by the stash: `sqrt(t) / t = 1 / sqrt(t)`.
+//!     The stage order is Fp -> IntraSliceReduce -> FpDiv, so the root (Fp, FpFpu) and the division
+//!     (a separate stage) live in ONE pass. That pass writes eight values per slice, so whatever the
+//!     divider costs per element it costs it 8 times instead of 240 times.
+//!   * the final pass then needs THREE multiplies (s, 1/rms, w) and the vector engine has two
+//!     (`Mul0`, `Mul1`), so `sw = s * w` is precomputed in one small pass placed between the hop
+//!     store and the reload -- i.e. inside the cross-cluster sync's wait, where the machine is idle
+//!     anyway (the sync span ends when everything already issued has finished, so this work is
+//!     free and it shortens the exposed part of the wait).
+//! The sum of squares pass still needs `s` on its own, so the channel-scale VRF stays.
 
 use furiosa_opt_std::prelude::*;
 
@@ -30,11 +44,8 @@ pub(crate) type TailVrf = VrfTensor<f32, Chip, Vc, Tail, m![H % 240]>;
 
 /// The three per-row operands of the tail (residual, channel scale, RMSNorm weight) share ONE DM
 /// tensor. The point is the allocator: the pool is born with the FIRST load, which happens while the
-/// projection `z` is still alive, so the pool cannot be placed on z's address. In output9 each
-/// operand had its own tensor and the one loaded right after the hop store landed exactly on the
-/// region z had just freed -- z is written by both clusters and the tail reads in one, so the
-/// compiler guarded that reuse with a second Core wait (`DramReuse`, rlir `SyncTarget(DramReuse(43))`,
-/// tensor 43 at address 524288 = z's address).
+/// projection `z` is still alive, so the pool cannot be placed on z's address (that is what used to
+/// draw a second Core wait, `DramReuse`).
 pub(crate) type Pool = DmTensor<bf16, Chip, Vc, Tail, m![Zp, H % 240]>;
 pub(crate) type PoolVrf = TailVrf;
 
@@ -45,10 +56,10 @@ pub(crate) fn pool_load(ctx: &mut Context, pool: &mut Pool, v: &HbmTensor<bf16, 
         .to_dm_view(&mut ctx.tdma, pool.view_mut().tile::<m![Zp], 1, m![Zp = 1 #{!} 3, H % 240]>(slot));
 }
 
-/// Slot `slot` of the pool in the VRF, ready as a per-row operand of the tail's passes.
+/// Slot `slot` of the pool in the VRF, ready as a per-row operand of the tail's passes. The
+/// length-one slot axis is dropped in the collect, so the passes see exactly the operand shape they
+/// saw when every operand had its own tensor.
 pub(crate) fn pool_vrf(ctx: &mut Context, pool: &Pool, slot: usize) -> PoolVrf {
-    // The length-one slot axis is dropped in the collect, so the tail's passes see exactly the
-    // operand shape they saw when every operand had its own tensor.
     ctx.sub
         .begin(pool.view().tile::<m![Zp], 1, m![Zp = 1 # 3, H % 240]>(slot))
         .fetch::<m![Zp = 1], m![H % 240]>()
@@ -109,11 +120,7 @@ pub(crate) fn contract_tile_b(ctx: &mut Context, weight: &WeightTileB, x_trf: &X
         .commit_view(z.view_mut().tile::<m![H % 120], 16, m![H % 120 = 16 #{!} 120]>(offset));
 }
 
-/// x as two exact f8 levels in the TRF: q0 = f8(16x), q1 = f8(16x - q0). That is EXACT for a
-/// bf16 x: q0 keeps 4 significant bits, so 16x - q0 is an integer multiple of x's last bit with at
-/// most 4 significant bits of its own (see output5::project_quantised for the full argument).
-/// Three passes: q0 straight from x; q0 parked in the VRF; q1 = f8(16x - q0), the difference exact
-/// in f32.
+/// x as two exact f8 levels in the TRF: q0 = f8(16x), q1 = f8(16x - q0).
 pub(crate) fn quantise_x(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, OutputClusters, SlidingOutputColumns, m![Qs % 256]>,
@@ -198,11 +205,11 @@ pub(crate) fn project_normalize_add(
     // Each slot is read into the VRF right after its own load: a read of the pool must finish
     // before the next slot is written (one version chain), so the three `to_vrf` passes end up
     // spread over the DMA commands instead of queueing up behind the last load, where they would
-    // all land in the tail after the reload (output20: ~1.8K of tail).
+    // all land in the tail after the reload.
     let residual = pool_vrf(ctx, &pool, 0);
 
-    // The hop: all 3,840 projected values go to HBM in row order (the store is the same shape as
-    // the kernel's output store) and come back, 240 consecutive rows per slice, into slices 0..16.
+    // The hop: all 3,840 projected values go to HBM in row order and come back, 240 consecutive
+    // rows per slice, into slices 0..16.
     let mut hop: HbmTensor<bf16, Chip, m![H]> = HbmTensor::new();
     z.view().to_hbm_view(&mut ctx.tdma, hop.view_mut());
 
@@ -211,6 +218,30 @@ pub(crate) fn project_normalize_add(
     let scale = pool_vrf(ctx, &pool, 1);
     pool_load(ctx, &mut pool, rms_weight, 2);
     let rms_weight = pool_vrf(ctx, &pool, 2);
+
+    // sw = channel scale * RMSNorm weight, so that the final pass needs only two multiplies
+    // (`sw` and `1 / rms`) and no division. Listed before the reload: the issuer hands it over
+    // during the cross-cluster sync's wait, where both the DMA and the tensor unit are idle.
+    let sw_dm: TailDm<f32> = ctx
+        .main
+        .begin(pool.view().tile::<m![Zp], 1, m![Zp = 1 # 3, H % 240]>(1))
+        .fetch::<m![Zp = 1], m![H % 240]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 30], m![H % 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_split::<m![H / 4 % 60], m![H % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &rms_weight)
+        .vector_widen_concat::<m![H / 8 % 30], m![H % 8]>()
+        .vector_final()
+        .commit_trim::<m![H % 8]>()
+        .commit();
+    let sw: TailVrf = ctx
+        .sub
+        .begin(sw_dm.view())
+        .fetch::<m![1], m![H % 240]>()
+        .collect::<m![H / 8 % 30], m![H % 8]>()
+        .to_vrf();
 
     let z_tail: TailDm<bf16> = hop.to_dm(&mut ctx.tdma);
 
@@ -234,8 +265,10 @@ pub(crate) fn project_normalize_add(
         .commit_trim::<m![1 # 8]>()
         .commit();
 
-    // Ring of sixteen: the mean square in every slice, epsilon, root.
-    let rms: DmTensor<f32, Chip, Vc, m![1 # 16, Vr], m![1 # 8]> = ctx
+    // Ring of sixteen: the mean square in every slice, epsilon, and the RECIPROCAL of the root --
+    // `t` is stashed before the root and the FpDiv stage divides by it: sqrt(t) / t = 1 / sqrt(t).
+    // Eight values per slice, so the divider runs 8 times instead of 240 times.
+    let inv_rms: DmTensor<f32, Chip, Vc, m![1 # 16, Vr], m![1 # 8]> = ctx
         .main
         .begin(partial.view())
         .fetch::<m![1], m![1 # 8]>()
@@ -245,14 +278,20 @@ pub(crate) fn project_normalize_add(
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_trim::<m![1 # 4]>()
         .vector_fp_binary(FpBinaryOp::AddF, EPS_SCALED)
+        .vector_stash()
         .vector_fp_unary(FpUnaryOp::Sqrt)
+        .vector_fp_div(Stash)
         .vector_widen_pad::<m![1 # 8]>()
         .vector_final()
         .commit_trim::<m![1 # 8]>()
         .commit();
-    let rms: DmTensor<f32, Chip, Vc, Tail, m![1 # 8]> = unsafe { rms.reshape() };
-    let rms_vrf: VrfTensor<f32, Chip, Vc, Tail, m![1 # 8]> =
-        ctx.sub.begin(rms.view()).fetch::<m![1], m![1 # 8]>().collect::<m![1], m![1 # 8]>().to_vrf();
+    let inv_rms: DmTensor<f32, Chip, Vc, Tail, m![1 # 8]> = unsafe { inv_rms.reshape() };
+    let inv_rms_vrf: VrfTensor<f32, Chip, Vc, Tail, m![1 # 8]> = ctx
+        .sub
+        .begin(inv_rms.view())
+        .fetch::<m![1], m![1 # 8]>()
+        .collect::<m![1], m![1 # 8]>()
+        .to_vrf();
 
     let out: TailDm<bf16> = ctx
         .main
@@ -263,9 +302,8 @@ pub(crate) fn project_normalize_add(
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_split::<m![H / 4 % 60], m![H % 4]>()
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &scale)
-        .vector_fp_binary(FpBinaryOp::DivF, &rms_vrf)
-        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul1), &rms_weight)
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &sw)
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul1), &inv_rms_vrf)
         .vector_widen_concat::<m![H / 8 % 30], m![H % 8]>()
         .vector_clip(ClipBinaryOpF32::Add, &residual)
         .vector_final()
