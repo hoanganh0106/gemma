@@ -36,7 +36,7 @@ pub(crate) type TailVrf = VrfTensor<f32, Chip, Vc, Tail, m![H % 240]>;
 /// compiler guarded that reuse with a second Core wait (`DramReuse`, rlir `SyncTarget(DramReuse(43))`,
 /// tensor 43 at address 524288 = z's address).
 pub(crate) type Pool = DmTensor<bf16, Chip, Vc, Tail, m![Zp, H % 240]>;
-pub(crate) type PoolVrf = VrfTensor<f32, Chip, Vc, Tail, m![Zp = 1, H % 240]>;
+pub(crate) type PoolVrf = TailVrf;
 
 /// Loads `v` into slot `slot` of the pool. The pool's slots are written in program order (one DM
 /// tensor = one version chain), so the caller lists them in the order it wants them issued.
@@ -47,11 +47,13 @@ pub(crate) fn pool_load(ctx: &mut Context, pool: &mut Pool, v: &HbmTensor<bf16, 
 
 /// Slot `slot` of the pool in the VRF, ready as a per-row operand of the tail's passes.
 pub(crate) fn pool_vrf(ctx: &mut Context, pool: &Pool, slot: usize) -> PoolVrf {
+    // The length-one slot axis is dropped in the collect, so the tail's passes see exactly the
+    // operand shape they saw when every operand had its own tensor.
     ctx.sub
         .begin(pool.view().tile::<m![Zp], 1, m![Zp = 1 # 3, H % 240]>(slot))
         .fetch::<m![Zp = 1], m![H % 240]>()
         .fetch_cast::<f32>()
-        .collect::<m![Zp = 1, H / 8 % 30], m![H % 8]>()
+        .collect::<m![H / 8 % 30], m![H % 8]>()
         .to_vrf()
 }
 
@@ -193,6 +195,11 @@ pub(crate) fn project_normalize_add(
     // opens the pool, which is what keeps the two loads behind the store off z's address.
     let mut pool: Pool = DmTensor::new();
     pool_load(ctx, &mut pool, residual_hbm, 0);
+    // Each slot is read into the VRF right after its own load: a read of the pool must finish
+    // before the next slot is written (one version chain), so the three `to_vrf` passes end up
+    // spread over the DMA commands instead of queueing up behind the last load, where they would
+    // all land in the tail after the reload (output20: ~1.8K of tail).
+    let residual = pool_vrf(ctx, &pool, 0);
 
     // The hop: all 3,840 projected values go to HBM in row order (the store is the same shape as
     // the kernel's output store) and come back, 240 consecutive rows per slice, into slices 0..16.
@@ -201,9 +208,8 @@ pub(crate) fn project_normalize_add(
 
     // These two are what the model puts between the store and the reload: they cover the sync.
     pool_load(ctx, &mut pool, weight_scale, 1);
-    pool_load(ctx, &mut pool, rms_weight, 2);
-    let residual = pool_vrf(ctx, &pool, 0);
     let scale = pool_vrf(ctx, &pool, 1);
+    pool_load(ctx, &mut pool, rms_weight, 2);
     let rms_weight = pool_vrf(ctx, &pool, 2);
 
     let z_tail: TailDm<bf16> = hop.to_dm(&mut ctx.tdma);

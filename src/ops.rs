@@ -165,7 +165,7 @@ pub fn sliding_attention_output(
     o_weight_scale: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    sliding::output19::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
+    sliding::output23::project_normalize_add(ctx, x, o_weight, o_weight_scale, post_attn_rms_weight, residual_hbm);
 }
 
 #[device(chip = 1)]
