@@ -50,6 +50,19 @@ fn normalize_quantize(
     x: &HbmTensor<bf16, Chip, m![H]>,
     rms_weight: &HbmTensor<bf16, Chip, m![H]>,
 ) -> (TrfTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![1], m![T2, Ut, Xp]>, DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]>) {
+    // WARM-UP. The first Sub command of this kernel costs ~10x its model cycles (2,696 device for a
+    // 267-cycle StoVrf) and the ISSUER stalls on it, which is why the DMA idles 2,464 cycles between
+    // the norm-weight load and the decode-table load and the up weight load starts at 9,209 instead
+    // of ~6,3K. This command depends on nothing, so the issuer hands it over at once and the warm-up
+    // is paid off the critical chain; its value is never read.
+    let warm: DmTensor<f32, Chip, UpGateClusters, Pieces, m![1 # 8]> = DmTensor::new();
+    let _warm_vrf: VrfTensor<f32, Chip, UpGateClusters, Pieces, m![1 # 8]> = ctx
+        .sub
+        .begin(warm.view())
+        .fetch::<m![1], m![1 # 8]>()
+        .collect::<m![1], m![1 # 8]>()
+        .to_vrf();
+
     let x: DmTensor<bf16, Chip, UpGateClusters, Loaded, m![H % 480]> = x.to_dm(&mut ctx.tdma);
     let x: DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]> = unsafe { x.reshape() };
 
