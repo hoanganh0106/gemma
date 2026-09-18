@@ -21,10 +21,10 @@ const EPS_SCALED: f32 = EPS * X_SCALE * X_SCALE;
 type Levels = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq, Qs % 256]>;
 
 pub(crate) type Rows = SlidingOutputRows;
-/// The tail's home: slices 0..16 of both clusters (replicated), slice g holding rows 240g..240g+240.
+/// The tail's home: slices 0..16 of cluster 0 only (`m![1 # 2]`), slice g holding rows 240g..240g+240.
 pub(crate) type Tail = m![1 # 16, H / 240];
-pub(crate) type TailDm<D> = DmTensor<D, Chip, m![Vc], Tail, m![H % 240]>;
-pub(crate) type TailVrf = VrfTensor<f32, Chip, m![Vc], Tail, m![H % 240]>;
+pub(crate) type TailDm<D> = DmTensor<D, Chip, m![1 # 2], Tail, m![H % 240]>;
+pub(crate) type TailVrf = VrfTensor<f32, Chip, m![1 # 2], Tail, m![H % 240]>;
 
 pub(crate) fn tail_operand(ctx: &mut Context, v: &HbmTensor<bf16, Chip, m![H]>) -> TailVrf {
     let dm: TailDm<bf16> = v.to_dm(&mut ctx.tdma);
@@ -184,7 +184,7 @@ pub(crate) fn project_normalize_add(
     let z_tail: TailDm<bf16> = hop.to_dm(&mut ctx.tdma);
 
     // Sum of squares of the 240 scaled values of each slice, over H.
-    let partial: DmTensor<f32, Chip, m![Vc], Tail, m![1 # 8]> = ctx
+    let partial: DmTensor<f32, Chip, m![1 # 2], Tail, m![1 # 8]> = ctx
         .main
         .begin(z_tail.view())
         .fetch::<m![1], m![H % 240]>()
@@ -204,7 +204,7 @@ pub(crate) fn project_normalize_add(
         .commit();
 
     // Ring of sixteen: the mean square in every slice, epsilon, root.
-    let rms: DmTensor<f32, Chip, m![Vc], m![1 # 16, Vr], m![1 # 8]> = ctx
+    let rms: DmTensor<f32, Chip, m![1 # 2], m![1 # 16, Vr], m![1 # 8]> = ctx
         .main
         .begin(partial.view())
         .fetch::<m![1], m![1 # 8]>()
@@ -219,8 +219,8 @@ pub(crate) fn project_normalize_add(
         .vector_final()
         .commit_trim::<m![1 # 8]>()
         .commit();
-    let rms: DmTensor<f32, Chip, m![Vc], Tail, m![1 # 8]> = unsafe { rms.reshape() };
-    let rms_vrf: VrfTensor<f32, Chip, m![Vc], Tail, m![1 # 8]> =
+    let rms: DmTensor<f32, Chip, m![1 # 2], Tail, m![1 # 8]> = unsafe { rms.reshape() };
+    let rms_vrf: VrfTensor<f32, Chip, m![1 # 2], Tail, m![1 # 8]> =
         ctx.sub.begin(rms.view()).fetch::<m![1], m![1 # 8]>().collect::<m![1], m![1 # 8]>().to_vrf();
 
     let out: TailDm<bf16> = ctx
