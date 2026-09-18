@@ -16,7 +16,7 @@ use crate::{Chip, EPS};
 // columns) or of a down half-row (7680), Xp is the packet. The scale tiles reduce Ut / Dt only, so
 // four partial sums (Xp / 16) leave the Vector Engine per row: a full commit packet, no transpose
 // (the Transpose Engine is main-context only, the scale tiles run on the sub context).
-axes![Rep32 = 32, Ring8 = 8, T2 = 2, Xh = 3840, Rep4 = 4, Ring64 = 64, Xg = 120, Xd = 7680, Ut = 60, Dt = 120, Xp = 64, C2 = 2, Lead4 = 4, Hg = 128, Pw = 64];
+axes![Rep8 = 8, Q4 = 4, Rep32 = 32, Ring8 = 8, T2 = 2, Xh = 3840, Rep4 = 4, Ring64 = 64, Xg = 120, Xd = 7680, Ut = 60, Dt = 120, Xp = 64, C2 = 2, Lead4 = 4, Hg = 128, Pw = 64];
 
 const H_F32: f32 = H::SIZE as f32;
 const INVSQRT2: f32 = 0.70710678118f32;
@@ -28,11 +28,14 @@ const UP_GAIN: f32 = 128.0;
 /// moved to the last pass), so it is ~1e4 times larger than the scaled value.
 const DOWN_GAIN: f32 = 0.25;
 
-/// 32 real copies of eight 480-column pieces.
-type Pieces = m![Rep32, H / 480];
-type PiecesX = m![Rep32, Xh / 480];
+/// Eight real copies of eight 480-column pieces: only the first ring of every four holds data after
+/// the load (`Loaded`); the passes run on all of them (`Pieces`: the other three compute on whatever
+/// their memory holds and are overwritten by the Switch before anything reads them).
+type Loaded = m![Rep8, 1 # 4, H / 480];
+type Pieces = m![Rep8, Q4, H / 480];
+type PiecesX = m![Rep8, Q4, Xh / 480];
 /// The same 256 slices once each ring of eight has gathered the whole vector.
-type Gathered = m![Rep32, Ring8];
+type Gathered = m![Rep8, Q4, Ring8];
 /// One cluster's 7680 rows, 30 whole rows a slice.
 pub(crate) type RowSlices = m![L / 30 % 256];
 
@@ -43,7 +46,8 @@ fn normalize_quantize(
     x: &HbmTensor<bf16, Chip, m![H]>,
     rms_weight: &HbmTensor<bf16, Chip, m![H]>,
 ) -> (TrfTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![1], m![T2, Ut, Xp]>, DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]>) {
-    let x: DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]> = x.to_dm(&mut ctx.tdma);
+    let x: DmTensor<bf16, Chip, UpGateClusters, Loaded, m![H % 480]> = x.to_dm(&mut ctx.tdma);
+    let x: DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]> = unsafe { x.reshape() };
 
     let mean_square: DmTensor<f32, Chip, UpGateClusters, Pieces, m![1 # 8]> = ctx
         .main
@@ -79,7 +83,8 @@ fn normalize_quantize(
         .commit();
     let rms: DmTensor<f32, Chip, UpGateClusters, Pieces, m![1 # 8]> = unsafe { rms.reshape() };
 
-    let weight_dm: DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]> = rms_weight.to_dm(&mut ctx.tdma);
+    let weight_dm: DmTensor<bf16, Chip, UpGateClusters, Loaded, m![H % 480]> = rms_weight.to_dm(&mut ctx.tdma);
+    let weight_dm: DmTensor<bf16, Chip, UpGateClusters, Pieces, m![H % 480]> = unsafe { weight_dm.reshape() };
     let weight_vrf: VrfTensor<f32, Chip, UpGateClusters, Pieces, m![H % 480]> = ctx
         .sub
         .begin(weight_dm.view())
@@ -151,13 +156,23 @@ fn normalize_quantize(
         .commit_trim::<m![Xh % 8]>()
         .commit_view(q.view_mut().tile::<m![T2], 1, m![T2 = 1 #{!} 2, Xh % 480]>(1));
 
-    // All-gather along each ring of eight: every slice ends with both terms of the whole vector.
-    let gathered: DmTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![T2, Xh]> = ctx
+    // Only the first ring of every four holds real terms: an all-gather over the four (stride 8) gives
+    // every slice the four rings' pieces in ring order; member 0 is the real one.
+    let spread: DmTensor<f8e4m3, Chip, UpGateClusters, PiecesX, m![Q4, T2, Xh % 480]> = ctx
         .main
         .begin(q.view())
-        .fetch::<m![T2], m![Xh % 480]>()
-        .switch::<Gathered, m![T2, Xh / 480]>(SwitchConfig::Broadcast1 { slice1: 8, slice0: 1 })
-        .collect::<m![T2, Xh / 32], m![Xh % 32]>()
+        .fetch::<m![1], m![T2, Xh % 480]>()
+        .switch::<PiecesX, m![1, Q4]>(SwitchConfig::Broadcast1 { slice1: 4, slice0: 8 })
+        .collect::<m![1, Q4, T2, Xh / 32 % 15], m![Xh % 32]>()
+        .commit_trim::<m![Xh % 32]>()
+        .commit();
+    // All-gather along each ring of eight: every slice ends with both terms of the whole vector.
+    let gathered: DmTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![Q4 = 1, T2, Xh]> = ctx
+        .main
+        .begin(spread.view().tile::<m![Q4], 1, m![Q4 = 1 # 4, T2, Xh % 480]>(0))
+        .fetch::<m![Q4 = 1, T2], m![Xh % 480]>()
+        .switch::<Gathered, m![Q4 = 1, T2, Xh / 480]>(SwitchConfig::Broadcast1 { slice1: 8, slice0: 1 })
+        .collect::<m![Q4 = 1, T2, Xh / 32], m![Xh % 32]>()
         .commit_trim::<m![Xh % 32]>()
         .commit();
     let gathered: DmTensor<f8e4m3, Chip, UpGateClusters, Gathered, m![T2, Ut, Xp]> =
