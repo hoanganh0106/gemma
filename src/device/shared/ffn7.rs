@@ -545,8 +545,12 @@ pub(crate) fn feedforward(
 
     let down_s = down_scales_bf16(ctx, down_weight_scale);
     let mut partial: DmTensor<f32, Chip, UpGateClusters, DownSlices, m![H / 2 % 15, 1 # 8]> = DmTensor::new();
-    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 0, 6);
-    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 6, 6);
+    // TWO tiles instead of three. The bytes are identical, but each tile costs one weight command
+    // (~1,700 by the corrected cost law) AND, for every tile after the first, one compiler-generated
+    // f4 decode-table load (~2,000): the tables are the DmaLoads with an empty description, and
+    // three tiles need two of them. The LAST tile keeps its shipped 3-unit shape, because its block
+    // pass is the one that cannot hide under a following load; only the first two are merged.
+    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 0, 12);
     down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 12, 3);
 
     // Two neighbouring slices meet (rows interleaved two ways, so the pair is 30 consecutive rows).
