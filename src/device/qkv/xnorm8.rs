@@ -7,7 +7,7 @@
 //! contraction needs no decode table and runs ~3.5x faster on the device than f8 -> bf16.
 use furiosa_opt_std::prelude::*;
 
-use super::{Rep16, Ring16, Term};
+use super::{Rep16, Ring16, Slot, Term};
 use crate::axes::H;
 use crate::{Chip, EPS};
 
@@ -18,12 +18,24 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
     x: &HbmTensor<bf16, Chip, m![H]>,
     rms_weight: &HbmTensor<bf16, Chip, m![H]>,
 ) -> XTerms<Cluster> {
-    let x: DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = x.to_dm(&mut ctx.tdma);
-
+    // The input weight and the hidden state are two TILES of ONE DM tensor, the weight written
+    // FIRST: tile writes chain in program order, so the x load is placed behind the weight load
+    // instead of in front of it. Both loads sit on the DMA queue either way, but the scheduler
+    // lists the whole RMSNorm chain one DMA slot later, and the issuing thread -- which walks
+    // that list and stalls on every instruction whose inputs are not ready (BRIEF2 UPDATE 12) --
+    // then reaches the first big weight load BEFORE the chain instead of after it.
+    // x takes tile 0 so that it keeps the tensor's own alignment.
+    let mut xpool: DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![Slot, H % 240]> = DmTensor::new();
+    {
+        let w = unsafe { rms_weight.view().reshape::<Chip, m![Slot = 1, H]>() };
+        w.to_dm_view(&mut ctx.tdma, xpool.view_mut().tile::<m![Slot], 1, m![Slot = 1 #{!} 2, H % 240]>(1));
+        let xv = unsafe { x.view().reshape::<Chip, m![Slot = 1, H]>() };
+        xv.to_dm_view(&mut ctx.tdma, xpool.view_mut().tile::<m![Slot], 1, m![Slot = 1 #{!} 2, H % 240]>(0));
+    }
     let mean_square: DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![1 # 8]> = ctx
         .main
-        .begin(x.view())
-        .fetch::<m![H / 16 % 15], m![H % 16]>()
+        .begin(xpool.view().tile::<m![Slot], 1, m![Slot = 1 # 2, H % 240]>(0))
+        .fetch::<m![Slot = 1, H / 16 % 15], m![H % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![H / 8 % 30], m![H % 8]>()
         .vector_init()
@@ -64,11 +76,10 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
         .commit();
     let rms: DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![1 # 8]> = unsafe { rms.reshape() };
 
-    let weight_dm: DmTensor<bf16, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = rms_weight.to_dm(&mut ctx.tdma);
     let weight_vrf: VrfTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = ctx
         .sub
-        .begin(weight_dm.view())
-        .fetch::<m![H / 16 % 15], m![H % 16]>()
+        .begin(xpool.view().tile::<m![Slot], 1, m![Slot = 1 # 2, H % 240]>(1))
+        .fetch::<m![Slot = 1, H / 16 % 15], m![H % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![H / 8 % 30], m![H % 8]>()
         .to_vrf();
@@ -80,8 +91,8 @@ pub(crate) fn normalize_everywhere_f8<Cluster: M>(
         .to_vrf();
     let normalized: DmTensor<f32, Chip, Cluster, m![Rep16, H / 240], m![H % 240]> = ctx
         .main
-        .begin(x.view())
-        .fetch::<m![H / 16 % 15], m![H % 16]>()
+        .begin(xpool.view().tile::<m![Slot], 1, m![Slot = 1 # 2, H % 240]>(0))
+        .fetch::<m![Slot = 1, H / 16 % 15], m![H % 16]>()
         .fetch_cast::<f32>()
         .collect::<m![H / 8 % 30], m![H % 8]>()
         .vector_init()

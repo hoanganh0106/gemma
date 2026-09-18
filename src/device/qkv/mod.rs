@@ -13,7 +13,7 @@ pub(crate) mod proj8;
 pub(crate) mod rope;
 pub(crate) mod xnorm8;
 
-axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2, Pool = 10, Kv = 2];
+axes![Rep16 = 16, Ring16 = 16, HeadCopy4 = 4, RopeTable = 2, Term = 2, Pool = 10, Kv = 2, Slot = 2];
 
 /// Whole weight rows, STRIDED over the row slices of a head: the innermost slice axis is the low
 /// digit of the row index (`Ds % 8`, `Ds % 4`), so consecutive HBM rows (3,840-byte, 256-aligned
