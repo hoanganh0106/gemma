@@ -550,8 +550,8 @@ pub(crate) fn feedforward(
     // f4 decode-table load (~2,000): the tables are the DmaLoads with an empty description, and
     // three tiles need two of them. The LAST tile keeps its shipped 3-unit shape, because its block
     // pass is the one that cannot hide under a following load; only the first two are merged.
-    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 0, 11);
-    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 11, 4);
+    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 0, 10);
+    down_tile!(ctx, down_weight_packed, x_trf, down_s, partial, 10, 5);
 
     // Two neighbouring slices meet (rows interleaved two ways, so the pair is 30 consecutive rows).
     let partial: DmTensor<f32, Chip, UpGateClusters, DownRowSlices, m![H / 2 % 15, 1 # 8]> = unsafe { partial.reshape() };
