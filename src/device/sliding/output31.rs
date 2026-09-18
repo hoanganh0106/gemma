@@ -310,6 +310,7 @@ pub(crate) fn project_normalize_add(
         .cast::<bf16, m![H % 8 # 16]>()
         .commit_trim::<m![H % 8]>()
         .commit();
-    let out: DmTensor<bf16, Chip, m![1 # 2], Tail, m![H % 240]> = unsafe { out.reshape() };
+    // `Vc` IS `m![1 # 2]`, so the reshape that used to stand here was a no-op that still cost a
+    // cross-resource wait point in the schedule.
     out.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
