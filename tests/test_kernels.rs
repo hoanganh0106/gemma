@@ -588,10 +588,11 @@ fn compare(label: &str, expected: &[f32], actual: &[f32], atol: f32, rtol: f32) 
 
 const TRACING_TARGET_NPU: &str = "span::npu";
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct Span {
     begin: u64,
     end: u64,
+    desc: String,
 }
 
 /// A minimal `tracing::Subscriber`: all we need is to see each `span::npu` span's fields
@@ -621,6 +622,7 @@ impl Collector {
 struct FieldExtractor {
     begin: Option<u64>,
     end: Option<u64>,
+    desc: String,
 }
 
 impl tracing::field::Visit for FieldExtractor {
@@ -628,11 +630,21 @@ impl tracing::field::Visit for FieldExtractor {
         match field.name() {
             "begin_cycle" => self.begin = Some(value),
             "end_cycle" => self.end = Some(value),
-            _ => {}
+            other => self.desc.push_str(&format!(" {other}={value}")),
         }
     }
 
-    fn record_debug(&mut self, _field: &tracing::field::Field, _value: &dyn std::fmt::Debug) {}
+    fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
+        self.desc.push_str(&format!(" {}={value}", field.name()));
+    }
+
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        self.desc.push_str(&format!(" {}={value:?}", field.name()));
+    }
+
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        self.desc.push_str(&format!(" {}={value:?}", field.name()));
+    }
 }
 
 impl tracing::Subscriber for Collector {
@@ -645,7 +657,8 @@ impl tracing::Subscriber for Collector {
             let mut extractor = FieldExtractor::default();
             attrs.record(&mut extractor);
             if let (Some(begin), Some(end)) = (extractor.begin, extractor.end) {
-                self.spans.lock().unwrap().push(Span { begin, end });
+                let desc = format!("{}{}", attrs.metadata().name(), extractor.desc);
+                self.spans.lock().unwrap().push(Span { begin, end, desc });
             }
         }
         // 0 is reserved by `span::Id`; spans aren't tracked individually here, so the
@@ -694,6 +707,11 @@ async fn main() {
 
     let mut failures = Vec::new();
     for test in TESTS {
+        if let Ok(only) = std::env::var("ONLY") {
+            if test.name != only {
+                continue;
+            }
+        }
         if profile {
             println!("==> {}", test.name);
             collector.clear();
@@ -726,6 +744,15 @@ async fn main() {
         }
 
         if profile {
+            if let Ok(dir) = std::env::var("DUMP_SPANS") {
+                let spans = collector.spans.lock().unwrap();
+                let base = spans.iter().map(|s| s.begin).min().unwrap_or(0);
+                let body: String = spans
+                    .iter()
+                    .map(|s| format!("{} {} {}\n", s.begin - base, s.end - base, s.desc))
+                    .collect();
+                std::fs::write(format!("{dir}/spans_{}.txt", test.name), body).unwrap();
+            }
             match cycles {
                 Some(c) => println!("    cycles={c}"),
                 None => println!("    cycles=none observed"),

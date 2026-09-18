@@ -71,53 +71,29 @@ pub(crate) fn pool_vrf(ctx: &mut Context, pool: &Pool, slot: usize) -> PoolVrf {
 pub(crate) type XTrf = TrfTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![Lq], m![Qs % 256]>;
 pub(crate) type Z = DmTensor<bf16, Chip, OutputClusters, Rows, m![H % 120]>;
 
-pub(crate) type WeightTileA = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![H % 120 = 104, Qs % 256]>;
-pub(crate) type WeightTileB = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![H % 120 = 16, Qs % 256]>;
+pub(crate) type WeightTile = DmTensor<f8e4m3, Chip, OutputClusters, SlidingOutputColumns, m![H % 120, Qs % 256]>;
 
-/// Rows `offset..offset + 104` of every row slice: the two levels summed inside the pass.
-pub(crate) fn contract_tile_a(ctx: &mut Context, weight: &WeightTileA, x_trf: &XTrf, z: &mut Z, offset: usize) {
+/// Every one of the 120 rows of every row slice: the two levels summed inside the pass.
+pub(crate) fn contract_tile(ctx: &mut Context, weight: &WeightTile, x_trf: &XTrf, z: &mut Z) {
     ctx.main
         .begin(weight.view())
-        .fetch::<m![H % 120 = 104, Qs / 32 % 8], m![Qs % 32]>()
-        .collect::<m![H % 120 = 104, Qs / 32 % 8], m![Qs % 32]>()
-        .contract_outer::<m![H % 120 = 104, Qs / 64 % 4], m![Qs % 64], _, _, _>(x_trf)
+        .fetch::<m![H % 120, Qs / 32 % 8], m![Qs % 32]>()
+        .collect::<m![H % 120, Qs / 32 % 8], m![Qs % 32]>()
+        .contract_outer::<m![H % 120, Qs / 64 % 4], m![Qs % 64], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
-        .contract_time::<m![H % 120 = 104]>()
-        .contract_lane::<m![H % 120 = 104, Lq], m![1 # 8]>(LaneMode::Sequential)
+        .contract_time::<m![H % 120]>()
+        .contract_lane::<m![H % 120, Lq], m![1 # 8]>(LaneMode::Sequential)
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_trim::<m![1 # 4]>()
-        .vector_intra_slice_reduce::<Lq, m![H % 120 = 104], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+        .vector_intra_slice_reduce::<Lq, m![H % 120], m![1 # 4]>(IntraSliceReduceOpF32::Add)
         .vector_widen_pad::<m![1 # 8]>()
-        .vector_inter_slice_reduce::<Rows, m![H % 120 = 104]>(InterSliceReduceOpF32::Add)
+        .vector_inter_slice_reduce::<Rows, m![H % 120]>(InterSliceReduceOpF32::Add)
         .vector_final()
         .cast::<bf16, m![1 # 16]>()
-        .transpose::<m![H % 120 = 104 / 4], m![H % 120 = 104 % 4 # 16]>()
-        .commit_trim::<m![H % 120 = 104 % 4]>()
-        .commit_view(z.view_mut().tile::<m![H % 120], 104, m![H % 120 = 104 #{!} 120]>(offset));
-}
-
-/// Rows `offset..offset + 16` of every row slice.
-pub(crate) fn contract_tile_b(ctx: &mut Context, weight: &WeightTileB, x_trf: &XTrf, z: &mut Z, offset: usize) {
-    ctx.main
-        .begin(weight.view())
-        .fetch::<m![H % 120 = 16, Qs / 32 % 8], m![Qs % 32]>()
-        .collect::<m![H % 120 = 16, Qs / 32 % 8], m![Qs % 32]>()
-        .contract_outer::<m![H % 120 = 16, Qs / 64 % 4], m![Qs % 64], _, _, _>(x_trf)
-        .contract_packet::<m![1]>()
-        .contract_time::<m![H % 120 = 16]>()
-        .contract_lane::<m![H % 120 = 16, Lq], m![1 # 8]>(LaneMode::Sequential)
-        .vector_init()
-        .vector_intra_slice_tag(TagMode::Zero)
-        .vector_narrow_trim::<m![1 # 4]>()
-        .vector_intra_slice_reduce::<Lq, m![H % 120 = 16], m![1 # 4]>(IntraSliceReduceOpF32::Add)
-        .vector_widen_pad::<m![1 # 8]>()
-        .vector_inter_slice_reduce::<Rows, m![H % 120 = 16]>(InterSliceReduceOpF32::Add)
-        .vector_final()
-        .cast::<bf16, m![1 # 16]>()
-        .transpose::<m![H % 120 = 16 / 4], m![H % 120 = 16 % 4 # 16]>()
-        .commit_trim::<m![H % 120 = 16 % 4]>()
-        .commit_view(z.view_mut().tile::<m![H % 120], 16, m![H % 120 = 16 #{!} 120]>(offset));
+        .transpose::<m![H % 120 / 4], m![H % 120 % 4 # 16]>()
+        .commit_trim::<m![H % 120 % 4]>()
+        .commit_view(z.view_mut());
 }
 
 /// x as two exact f8 levels in the TRF: q0 = f8(16x), q1 = f8(16x - q0).
@@ -177,16 +153,8 @@ pub(crate) fn project_normalize_add(
     rms_weight: &HbmTensor<bf16, Chip, m![H]>,
     residual_hbm: &mut HbmTensor<bf16, Chip, m![H]>,
 ) {
-    // The weight in two tiles, 104 and 16 rows per slice: the big tile is contracted while the
-    // small one is still on its way.
-    let weight_a: WeightTileA = weight
-        .view()
-        .tile::<m![H % 120], 104, m![H / 120, H % 120 = 104 # 120, Qs]>(0)
-        .to_dm(&mut ctx.tdma);
-    let weight_b: WeightTileB = weight
-        .view()
-        .tile::<m![H % 120], 16, m![H / 120, H % 120 = 16 # 120, Qs]>(104)
-        .to_dm(&mut ctx.tdma);
+    // The whole weight in ONE DMA command: 120 rows per slice.
+    let weight_dm: WeightTile = weight.view().to_dm(&mut ctx.tdma);
 
     // One DMA load hands every slice the 256 columns it contracts, once per row group.
     let x: DmTensor<bf16, Chip, OutputClusters, m![H / 120 % 16, Ns, Gs], m![Ds]> = x.to_dm(&mut ctx.tdma);
@@ -195,8 +163,7 @@ pub(crate) fn project_normalize_add(
 
     // 16 * (weight @ x), bf16, 120 rows per row slice.
     let mut z: Z = DmTensor::new();
-    contract_tile_a(ctx, &weight_a, &x_trf, &mut z, 0);
-    contract_tile_b(ctx, &weight_b, &x_trf, &mut z, 104);
+    contract_tile(ctx, &weight_dm, &x_trf, &mut z);
 
     // The residual, loaded here so that the DMA has work while the small tile is contracted; it
     // opens the pool, which is what keeps the two loads behind the store off z's address.
@@ -310,7 +277,6 @@ pub(crate) fn project_normalize_add(
         .cast::<bf16, m![H % 8 # 16]>()
         .commit_trim::<m![H % 8]>()
         .commit();
-    // `Vc` IS `m![1 # 2]`, so the reshape that used to stand here was a no-op that still cost a
-    // cross-resource wait point in the schedule.
+    let out: DmTensor<bf16, Chip, m![1 # 2], Tail, m![H % 240]> = unsafe { out.reshape() };
     out.view().to_hbm_view(&mut ctx.tdma, residual_hbm.view_mut());
 }
