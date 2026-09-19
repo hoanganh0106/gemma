@@ -2,3 +2,16 @@ target
 Cargo.lock
 /ref
 **/__pycache__
+# Local indexes, environments, and experiment artifacts
+.codegraph/
+codebase-memory-mcp/
+.venv/
+/backups/
+/submission_staging/
+/all3_job53647_81909_38271_210595/
+/furiosa-opt-gemma4-*/
+*.tar
+*.tar.gz
+*.bak
+/.tmp_*
+/.k1_a12_dir
