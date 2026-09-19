@@ -16,7 +16,7 @@ type KeyValueClusters = HeadClusters;
 
 pub(crate) fn project_query(
     ctx: &mut Context,
-    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
     weight: &HbmTensor<f8e4m3, Chip, m![Qs, H]>,
     weight_scale_vrf: &Vrf2,
 ) -> DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Pool = 2, Ds]> {
@@ -139,7 +139,7 @@ fn project_key_matrix(
 
 pub(crate) fn project_key_value(
     ctx: &mut Context,
-    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
     k_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     v_weight: &HbmTensor<f8e4m3, Chip, m![Ps, H]>,
     k_weight_scale: &Vrf1,
@@ -156,27 +156,27 @@ pub(crate) fn project_key_value(
 
 /// The two f8 terms of the hidden state, one per TRF lane: the contraction multiplies the weight
 /// stream against both lanes at once, so the second term costs no extra pass.
-type QueryOperand = TrfTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term], m![H]>;
-type KvOperand = TrfTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Term], m![H]>;
+type QueryOperand = TrfTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![1], m![H]>;
+type KvOperand = TrfTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![1], m![H]>;
 
 fn query_operand(
     ctx: &mut Context,
-    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
 ) -> QueryOperand {
     ctx.sub
         .begin(x.view())
-        .fetch::<m![Term], m![H]>()
-        .collect::<m![Term, H / 32], m![H % 32]>()
+        .fetch::<m![1], m![H]>()
+        .collect::<m![H / 32], m![H % 32]>()
         .to_trf()
 }
 
 fn key_value_operand(
     ctx: &mut Context,
-    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term, H]>,
+    x: &DmTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![H]>,
 ) -> KvOperand {
-    let x: DmTensorView<'_, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Term, H]> =
+    let x: DmTensorView<'_, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![H]> =
         unsafe { x.view().reshape() };
-    ctx.sub.begin(x).fetch::<m![Term], m![H]>().collect::<m![Term, H / 32], m![H % 32]>().to_trf()
+    ctx.sub.begin(x).fetch::<m![1], m![H]>().collect::<m![H / 32], m![H % 32]>().to_trf()
 }
 
 /// The Q projection, f8 x f8: 8 whole rows per slice against both terms of H (one per lane); the
@@ -196,11 +196,10 @@ fn contract_query(
         .contract_outer::<m![Ds / 8 % 8, H / 32], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![Ds / 8 % 8]>()
-        .contract_lane::<m![Ds / 8 % 8, Term], m![1 # 8]>(LaneMode::Sequential)
+        .contract_lane::<m![Ds / 8 % 8], m![1 # 8]>(LaneMode::Sequential)
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_trim::<m![1 # 4]>()
-        .vector_intra_slice_reduce::<Term, m![Ds / 8 % 8], m![1 # 4]>(IntraSliceReduceOpF32::Add)
         .vector_widen_pad::<m![1 # 8]>()
         .vector_final()
         .commit_trim::<m![1 # 8]>()
@@ -236,11 +235,10 @@ fn contract_key_value(
         .contract_outer::<m![Ds / 8 % 4, H / 32], m![H % 32], _, _, _>(x_trf)
         .contract_packet::<m![1]>()
         .contract_time::<m![Ds / 8 % 4]>()
-        .contract_lane::<m![Ds / 8 % 4, Term], m![1 # 8]>(LaneMode::Sequential)
+        .contract_lane::<m![Ds / 8 % 4], m![1 # 8]>(LaneMode::Sequential)
         .vector_init()
         .vector_intra_slice_tag(TagMode::Zero)
         .vector_narrow_trim::<m![1 # 4]>()
-        .vector_intra_slice_reduce::<Term, m![Ds / 8 % 4], m![1 # 4]>(IntraSliceReduceOpF32::Add)
         .vector_widen_pad::<m![1 # 8]>()
         .vector_final()
         .commit_trim::<m![1 # 8]>()

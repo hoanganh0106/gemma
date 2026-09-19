@@ -56,7 +56,7 @@ pub fn sliding_project_qkv(
     v_cache: &mut HbmTensor<bf16, Chip, m![Ts, Ns, Ds]>,
     q_out: &mut HbmTensor<bf16, Chip, m![Ns, Gs, Ds]>,
 ) {
-    use crate::device::qkv::{self, Term};
+    use crate::device::qkv::{self};
 
     // Every small load (row scales, head-norm weights, later the parked RoPE rows) is a tile of
     // ONE pool tensor: tile writes are chained in program order and a tile read depends on the
@@ -74,7 +74,7 @@ pub fn sliding_project_qkv(
     // Normalize on 16 real copies of sixteen 240-element pieces, then all-gather: every one of
     // the 256 slices of both clusters ends with a genuine copy of the whole normalized H.
     let x = qkv::xnorm8::normalize_everywhere_f8::<qkv::HeadClusters>(ctx, x, input_rms_weight);
-    let x: DmTensor<f8e4m3, Chip, qkv::HeadClusters, qkv::QueryRowSlices, m![Term, H]> =
+    let x: DmTensor<f8e4m3, Chip, qkv::HeadClusters, qkv::QueryRowSlices, m![H]> =
         unsafe { x.reshape() };
 
     // Each cluster keeps the four heads it projected, one head per slice, through the head
