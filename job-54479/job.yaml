@@ -1,0 +1,5 @@
+name: solo70_sinsub_vkq_r2
+entrypoint: ./remote_entrypoint.sh
+args: []
+env: {}
+timeout_sec: 70
