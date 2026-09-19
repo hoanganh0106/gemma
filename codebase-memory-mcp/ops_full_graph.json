@@ -1,0 +1,116 @@
+{
+  "graph": {
+    "name": "furiosa_opt_ops_rs_full",
+    "language": "rust",
+    "nodes": [
+      {"id": "src.ops::embed_token", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, embedding_table, offset, out)"},
+      {"id": "src.ops::sliding_project_qkv", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, x, q_weight, k_weight, v_weight, q_weight_scale, k_weight_scale, v_weight_scale, input_rms_weight, q_rms_weight, k_rms_weight, kv_offset, rope_offset, cos, sin, k_cache, v_cache, q_out)"},
+      {"id": "src.ops::full_project_qkv", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, x, q_weight, k_weight, q_weight_scale, k_weight_scale, input_rms_weight, q_rms_weight, k_rms_weight, kv_offset, rope_offset, cos, sin, k_cache, v_cache, q_out)"},
+      {"id": "src.ops::sliding_attention", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, q, k, v, mask, out_hbm)"},
+      {"id": "src.ops::sliding_attention_output", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, x, post_attn_rms_weight, o_weight, o_weight_scale, residual_hbm)"},
+      {"id": "src.ops::full_attention_first_page", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, q, k, v, mask, running_max, running_sum, out_hbm)"},
+      {"id": "src.ops::full_attention_page", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, q, k, v, mask, running_max, running_sum, out_hbm)"},
+      {"id": "src.ops::full_attention_output", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, x, running_sum, post_attn_rms_weight, o_weight, o_weight_scale, residual_hbm)"},
+      {"id": "src.ops::decoder_feedforward", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, residual_hbm, pre_ff_rms_weight, up_weight_packed, gate_weight_packed, down_weight_packed, up_weight_scale, gate_weight_scale, down_weight_scale, up_global_scale, gate_global_scale, down_global_scale, post_ff_rms_weight, layer_scalar)"},
+      {"id": "src.ops::final_norm_and_logits", "kind": "function", "file": "src/ops.rs", "signature": "(ctx, input, rms_weight, lm_head_weight, out)"},
+
+      {"id": "shared::rmsnorm::normalize", "kind": "function", "file": "src/device/shared/rmsnorm.rs"},
+      {"id": "shared::rmsnorm::normalize_query", "kind": "function", "file": "src/device/shared/rmsnorm.rs"},
+      {"id": "shared::rmsnorm::normalize_key", "kind": "function", "file": "src/device/shared/rmsnorm.rs"},
+      {"id": "shared::rmsnorm::normalize_value", "kind": "function", "file": "src/device/shared/rmsnorm.rs"},
+      {"id": "shared::residual::add", "kind": "function", "file": "src/device/shared/residual.rs"},
+      {"id": "shared::residual::scale_by_layer_gate", "kind": "function", "file": "src/device/shared/residual.rs"},
+      {"id": "shared::lm_head::logits", "kind": "function", "file": "src/device/shared/lm_head.rs"},
+      {"id": "shared::mlp::feedforward", "kind": "function", "file": "src/device/shared/mlp.rs"},
+
+      {"id": "layout::broadcast_hidden", "kind": "function", "file": "src/device/layout.rs"},
+      {"id": "layout::broadcast_sliding_heads", "kind": "function", "file": "src/device/layout.rs"},
+      {"id": "layout::broadcast_full_heads", "kind": "function", "file": "src/device/layout.rs"},
+
+      {"id": "sliding::projection::project_query", "kind": "function", "file": "src/device/sliding/projection.rs"},
+      {"id": "sliding::projection::project_key_value", "kind": "function", "file": "src/device/sliding/projection.rs"},
+      {"id": "sliding::projection::project_output", "kind": "function", "file": "src/device/sliding/projection.rs"},
+      {"id": "sliding::attention::attend", "kind": "function", "file": "src/device/sliding/attention.rs"},
+      {"id": "sliding::rope::apply_rope", "kind": "function", "file": "src/device/sliding/rope.rs"},
+      {"id": "sliding::rmsnorm::normalize_query", "kind": "function", "file": "src/device/sliding/rmsnorm.rs"},
+      {"id": "sliding::rmsnorm::normalize_key", "kind": "function", "file": "src/device/sliding/rmsnorm.rs"},
+      {"id": "sliding::rmsnorm::normalize_value", "kind": "function", "file": "src/device/sliding/rmsnorm.rs"},
+
+      {"id": "full::projection::project_query", "kind": "function", "file": "src/device/full/projection.rs"},
+      {"id": "full::projection::project_key", "kind": "function", "file": "src/device/full/projection.rs"},
+      {"id": "full::projection::project_output", "kind": "function", "file": "src/device/full/projection.rs"},
+      {"id": "full::attention::attend_first_page", "kind": "function", "file": "src/device/full/attention.rs"},
+      {"id": "full::attention::attend_next_page", "kind": "function", "file": "src/device/full/attention.rs"},
+      {"id": "full::attention::divide_by_softmax_sum", "kind": "function", "file": "src/device/full/attention.rs"},
+      {"id": "full::rope::apply_rope", "kind": "function", "file": "src/device/full/rope.rs"},
+      {"id": "full::rmsnorm::normalize_query", "kind": "function", "file": "src/device/full/rmsnorm.rs"},
+      {"id": "full::rmsnorm::normalize_key", "kind": "function", "file": "src/device/full/rmsnorm.rs"},
+      {"id": "full::rmsnorm::normalize_value", "kind": "function", "file": "src/device/full/rmsnorm.rs"},
+
+      {"id": "tensor_ops::to_dm", "kind": "method", "file": "src/ops.rs", "note": "from HbmTensor to DmTensor"},
+      {"id": "tensor_ops::to_hbm_view", "kind": "method", "file": "src/ops.rs", "note": "write back DM tensor to HBM view"},
+      {"id": "tensor_ops::reshape", "kind": "unsafe_fn", "file": "src/ops.rs", "note": "layout reshape cast"},
+      {"id": "tensor_ops::dma_scatter", "kind": "method", "file": "src/ops.rs", "note": "scatter cache update"}
+    ],
+    "edges": [
+      {"from": "src.ops::embed_token", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::embed_token", "to": "tensor_ops::to_hbm_view", "type": "writes-back"},
+
+      {"from": "src.ops::sliding_project_qkv", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "layout::broadcast_hidden", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "sliding::projection::project_query", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "sliding::projection::project_key_value", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "sliding::rmsnorm::normalize_query", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "sliding::rmsnorm::normalize_key", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "sliding::rmsnorm::normalize_value", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "sliding::rope::apply_rope", "type": "calls"},
+      {"from": "src.ops::sliding_project_qkv", "to": "tensor_ops::dma_scatter", "type": "writes-back"},
+
+      {"from": "src.ops::full_project_qkv", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "layout::broadcast_hidden", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "full::projection::project_query", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "full::projection::project_key", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "full::rmsnorm::normalize_query", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "full::rmsnorm::normalize_value", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "full::rmsnorm::normalize_key", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "full::rope::apply_rope", "type": "calls"},
+      {"from": "src.ops::full_project_qkv", "to": "tensor_ops::dma_scatter", "type": "writes-back"},
+
+      {"from": "src.ops::sliding_attention", "to": "sliding::attention::attend", "type": "calls"},
+
+      {"from": "src.ops::sliding_attention_output", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::sliding_attention_output", "to": "tensor_ops::reshape", "type": "calls"},
+      {"from": "src.ops::sliding_attention_output", "to": "layout::broadcast_sliding_heads", "type": "calls"},
+      {"from": "src.ops::sliding_attention_output", "to": "sliding::projection::project_output", "type": "calls"},
+      {"from": "src.ops::sliding_attention_output", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "src.ops::sliding_attention_output", "to": "shared::residual::add", "type": "calls"},
+      {"from": "src.ops::sliding_attention_output", "to": "tensor_ops::to_hbm_view", "type": "writes-back"},
+
+      {"from": "src.ops::full_attention_first_page", "to": "full::attention::attend_first_page", "type": "calls"},
+      {"from": "src.ops::full_attention_page", "to": "full::attention::attend_next_page", "type": "calls"},
+
+      {"from": "src.ops::full_attention_output", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "full::attention::divide_by_softmax_sum", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "tensor_ops::reshape", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "layout::broadcast_full_heads", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "full::projection::project_output", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "shared::residual::add", "type": "calls"},
+      {"from": "src.ops::full_attention_output", "to": "tensor_ops::to_hbm_view", "type": "writes-back"},
+
+      {"from": "src.ops::decoder_feedforward", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::decoder_feedforward", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "src.ops::decoder_feedforward", "to": "shared::mlp::feedforward", "type": "calls"},
+      {"from": "src.ops::decoder_feedforward", "to": "shared::residual::add", "type": "calls"},
+      {"from": "src.ops::decoder_feedforward", "to": "shared::residual::scale_by_layer_gate", "type": "calls"},
+      {"from": "src.ops::decoder_feedforward", "to": "tensor_ops::to_hbm_view", "type": "writes-back"},
+
+      {"from": "src.ops::final_norm_and_logits", "to": "tensor_ops::to_dm", "type": "calls"},
+      {"from": "src.ops::final_norm_and_logits", "to": "shared::rmsnorm::normalize", "type": "calls"},
+      {"from": "src.ops::final_norm_and_logits", "to": "shared::lm_head::logits", "type": "calls"},
+      {"from": "src.ops::final_norm_and_logits", "to": "tensor_ops::to_hbm_view", "type": "writes-back"}
+    ]
+  }
+}
