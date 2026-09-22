@@ -5,43 +5,49 @@ use crate::Chip;
 use crate::axes::{H, Mv};
 use crate::device::layout::{Cluster, Slice};
 
+/// Adds the residual stream, 480 elements per slice over the eight slices `normalize_spread`
+/// leaves them on. One slice at a time meant 3840 elements wide and two VRF round trips.
+pub(crate) fn add_spread<Cluster: M, Slices: M>(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]>,
+    residual: &DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]>,
+) -> DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]> {
+    let residual_vrf: VrfTensor<f32, Chip, Cluster, Slices, m![H % 480]> = ctx
+        .sub
+        .begin(residual.view())
+        .fetch::<m![1], m![H % 480]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .to_vrf();
+
+    ctx.main
+        .begin(x.view())
+        .fetch::<m![1], m![H % 480]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_clip(ClipBinaryOpF32::Add, &residual_vrf)
+        .vector_final()
+        .cast::<bf16, m![H % 8 # 16]>()
+        .commit_trim::<m![H % 8]>()
+        .commit()
+}
+
 pub(crate) fn add(
     ctx: &mut Context,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![H]>,
     residual: &DmTensor<bf16, Chip, Cluster, Slice, m![H]>,
 ) -> DmTensor<bf16, Chip, Cluster, Slice, m![H]> {
-    // EXP-011A-v2
-    //
-    // Residual add tile:
-    //   baseline : 480 elements  -> 8 passes
-    //   candidate: 1920 elements -> 2 passes
-    //
-    // residual_vrf:
-    //   1920 f32 * 4 B = 7680 B/slice
-    //   VRF capacity    = 8192 B/slice
-    //   headroom        =  512 B/slice
-    const TILE: usize = 1920;
-    const TILES: usize = H::SIZE / TILE;
+    const TILES: usize = H::SIZE / 1920;
 
-    let mut output: DmTensor<bf16, Chip, Cluster, Slice, m![H]> =
-        DmTensor::new();
+    let mut output: DmTensor<bf16, Chip, Cluster, Slice, m![H]> = DmTensor::new();
 
     for i in 0..TILES {
-        let x_tile = x
-            .view()
-            .tile::<m![H], 1920, m![H = 1920 # 3840]>(1920 * i);
+        let x_tile = x.view().tile::<m![H], 1920, m![H = 1920 # 3840]>(1920 * i);
+        let residual_tile = residual.view().tile::<m![H], 1920, m![H = 1920 # 3840]>(1920 * i);
 
-        let residual_tile = residual
-            .view()
-            .tile::<m![H], 1920, m![H = 1920 # 3840]>(1920 * i);
-
-        let residual_vrf: VrfTensor<
-            f32,
-            Chip,
-            Cluster,
-            Slice,
-            m![H = 1920],
-        > = ctx
+        let residual_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![H = 1920]> = ctx
             .sub
             .begin(residual_tile)
             .fetch::<m![1], m![H = 1920]>()
@@ -56,25 +62,45 @@ pub(crate) fn add(
             .collect::<m![H = 1920 / 8], m![H = 1920 % 8]>()
             .vector_init()
             .vector_intra_slice_tag(TagMode::Zero)
-            .vector_clip(
-                ClipBinaryOpF32::Add,
-                &residual_vrf,
-            )
+            .vector_clip(ClipBinaryOpF32::Add, &residual_vrf)
             .vector_final()
             .cast::<bf16, m![H = 1920 % 8 # 16]>()
             .commit_trim::<m![H = 1920 % 8]>()
-            .commit_view(
-                output
-                    .view_mut()
-                    .tile::<
-                        m![H],
-                        1920,
-                        m![H = 1920 #{!} 3840],
-                    >(1920 * i),
-            );
+            .commit_view(output.view_mut().tile::<m![H], 1920, m![H = 1920 #{!} 3840]>(1920 * i));
     }
 
     output
+}
+
+/// The layer gate, 480 elements per slice instead of 3840 on one.
+pub(crate) fn gate_spread<Cluster: M, Slices: M>(
+    ctx: &mut Context,
+    x: &DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]>,
+    scalar: &HbmTensor<bf16, Chip, m![1 # 8]>,
+) -> DmTensor<bf16, Chip, Cluster, Slices, m![H % 480]> {
+    let scalar: DmTensor<bf16, Chip, Cluster, Slices, m![1 # 8]> = scalar.to_dm(&mut ctx.tdma);
+    let scalar_vrf: VrfTensor<f32, Chip, Cluster, Slices, m![1 # 8]> = ctx
+        .sub
+        .begin(scalar.view())
+        .fetch::<m![1], m![1 # 8]>()
+        .fetch_cast::<f32>()
+        .collect::<m![1], m![1 # 8]>()
+        .to_vrf();
+
+    ctx.main
+        .begin(x.view())
+        .fetch::<m![1], m![H % 480]>()
+        .fetch_cast::<f32>()
+        .collect::<m![H / 8 % 60], m![H % 8]>()
+        .vector_init()
+        .vector_intra_slice_tag(TagMode::Zero)
+        .vector_narrow_split::<m![H / 4 % 120], m![H % 4]>()
+        .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &scalar_vrf)
+        .vector_widen_concat::<m![H / 8 % 60], m![H % 8]>()
+        .vector_final()
+        .cast::<bf16, m![H % 8 # 16]>()
+        .commit_trim::<m![H % 8]>()
+        .commit()
 }
 
 pub(crate) fn scale_by_layer_gate(
@@ -117,8 +143,8 @@ pub(crate) fn add_vision<Cluster: M, Slice: M>(
     let mut output: DmTensor<bf16, Chip, Cluster, Slice, m![Mv]> = DmTensor::new();
 
     for i in 0..TILES {
-        let x_tile = x.view().tile::<m![Mv], 480, m![Mv = 480 # 3840]>(480 * i);
-        let residual_tile = residual.view().tile::<m![Mv], 480, m![Mv = 480 # 3840]>(480 * i);
+        let x_tile = x.view().tile::<m![Mv], 480, m![Mv = 480 # 3840]>(1920 * i);
+        let residual_tile = residual.view().tile::<m![Mv], 480, m![Mv = 480 # 3840]>(1920 * i);
 
         let residual_vrf: VrfTensor<f32, Chip, Cluster, Slice, m![Mv = 480]> = ctx
             .sub
@@ -139,7 +165,7 @@ pub(crate) fn add_vision<Cluster: M, Slice: M>(
             .vector_final()
             .cast::<bf16, m![Mv = 480 % 8 # 16]>()
             .commit_trim::<m![Mv = 480 % 8]>()
-            .commit_view(output.view_mut().tile::<m![Mv], 480, m![Mv = 480 #{!} 3840]>(480 * i));
+            .commit_view(output.view_mut().tile::<m![Mv], 480, m![Mv = 480 #{!} 3840]>(1920 * i));
     }
 
     output

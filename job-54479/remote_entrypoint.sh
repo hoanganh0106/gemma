@@ -18,15 +18,8 @@ if [ ! -x "$binary" ]; then
     binary=./test_runtime.exec
 fi
 
-allowed=$(awk '/^Cpus_allowed_list:/{print $2}' /proc/self/status 2>/dev/null)
-cpu=${allowed%%,*}
-cpu=${cpu%%-*}
-if command -v taskset >/dev/null 2>&1 && [ -n "$cpu" ]; then
-    echo "remote_entrypoint.sh: pinning test runtime to CPU $cpu"
-    TUC_PROFILE_LEVEL="${TUC_PROFILE_LEVEL:-info}" taskset -c "$cpu" "$binary"
-else
-    TUC_PROFILE_LEVEL="${TUC_PROFILE_LEVEL:-info}" "$binary"
-fi
+echo "remote_entrypoint.sh: running test runtime without CPU pin"
+TUC_PROFILE_LEVEL="${TUC_PROFILE_LEVEL:-info}" "$binary"
 status=$?
 rm -f ./test_runtime.exec 2>/dev/null || true
 
@@ -40,3 +33,5 @@ else
     echo "remote_entrypoint.sh: kernel tests failed (exit $status)" >&2
 fi
 exit "$status"
+
+

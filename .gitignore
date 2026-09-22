@@ -1,16 +1,26 @@
 target
+target*
+.target*
 Cargo.lock
 /ref
 **/__pycache__
+# Local indexes, environments, and experiment artifacts
+.codegraph/
+codebase-memory-mcp/
 .venv/
-
-# Local code-index data
-/.codegraph/
-
-# Local optimization experiments and generated Arena artifacts
 /backups/
-*.log
-test_runtime
-fixtures.safetensors
-schedule*.json
-schedule*_summary/
+/submission_staging/
+/all3_job53647_81909_38271_210595/
+/furiosa-opt-gemma4-*/
+*.tar
+*.tar.gz
+*.zip
+*.bak
+/.tmp_*
+/.k1_a12_dir
+/.arena_*
+/candidate_*
+/delivery_*
+/experiments/
+/leaderboard_*
+
