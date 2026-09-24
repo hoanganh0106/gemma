@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P059-k1-input-rms-vrf/arena-84243.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    78169,
+    37986,
+    216378
+  ],
+  "samples": [
+    [
+      81127,
+      78169,
+      77133
+    ],
+    [
+      37986,
+      37794,
+      38300
+    ],
+    [
+      218332,
+      216378,
+      215181
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.360079748760272
+}
