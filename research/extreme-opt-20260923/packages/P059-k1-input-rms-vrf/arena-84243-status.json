@@ -1,0 +1,13 @@
+{
+  "id": 84243,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P059-input-rms-vrf-a1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T03:40:52Z",
+  "started_at": "2026-09-24T03:40:52Z",
+  "finished_at": "2026-09-24T03:40:59Z",
+  "duration_sec": 6.683591866,
+  "exit_code": 0,
+  "device_id": null
+}
