@@ -1,0 +1,1 @@
+P014 prefetches the first five-row down-weight tile while GeGLU output is still being computed. The load is independent of activation values; contraction still waits for finalized quantized activation. Other down tiles remain serial and all scales/arithmetic are preserved.

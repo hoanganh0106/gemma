@@ -1,0 +1,10 @@
+generated 0 sliding_project_qkv
+generated 0 sliding_attention_output
+generated 0 decoder_feedforward
+generated 1 sliding_project_qkv
+generated 1 sliding_attention_output
+generated 1 decoder_feedforward
+generated 2 sliding_project_qkv
+generated 2 sliding_attention_output
+generated 2 decoder_feedforward
+EXTENDED_FIXTURE_READY /mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/stress-extended-baseline

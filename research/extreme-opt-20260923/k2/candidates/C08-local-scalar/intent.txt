@@ -1,0 +1,1 @@
+Keep BF16 projections local; exchange only scalar mean-square via cluster_swap; preserve all scales and residual. Reduction tree changes but FP32 operations remain.

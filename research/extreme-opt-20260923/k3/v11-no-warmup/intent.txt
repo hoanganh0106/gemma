@@ -1,0 +1,1 @@
+Remove unused Sub warmup on uninitialized DM. Semantics unchanged; hardware issuer startup behavior may change.

@@ -1,0 +1,1 @@
+C04 with 16 groups of 240 values; same global H sum.

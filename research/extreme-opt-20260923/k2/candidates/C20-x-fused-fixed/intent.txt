@@ -1,0 +1,1 @@
+C18-x-fused-broadcast with fixed Broadcast1 16x16 topology instead of generic CustomBroadcast for x replication; identical initialized source slices and mathematical operations.

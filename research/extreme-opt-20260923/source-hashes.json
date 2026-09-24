@@ -1,0 +1,214 @@
+[
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\axes.rs",
+    "Hash": "A9507011038928391BCAE1068AB443A6005140F339BA803E41E0FFB07F7F843A"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\lib.rs",
+    "Hash": "60B0A34C636EF6FE7857D74F560F13334A7CFC5E18A0C9E3A77549516F16141E"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\ops_audio.rs",
+    "Hash": "C9DA265A64E3C1C88AAB1E91E9440B1D840B4F75C6B5E2DDC28E35D88776ECD5"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\ops_vision.rs",
+    "Hash": "FEA14178F0B586AAA04FC4F7BFA6BC1F240F70446E91D75A42BF9E29C0AD762A"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\ops.rs",
+    "Hash": "C75F578DC24603450EF7EBA136B12AA90CFD8DB6E928B3B320C8B34C1BD09F1C"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\api\\handlers.rs",
+    "Hash": "38EAF021FD7BE333E584DC5E7C13B73E9B626B0C025B4C4A4F2858ECBA0AFC0A"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\api\\mod.rs",
+    "Hash": "882420D3454EC2AFA0C7F4A6B8FA17C27CCAD73E87DB4D93D4384E02CA2A1A76"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\api\\schema.rs",
+    "Hash": "A19533AD49747CCFC0C08DD77D5BA172549D0963459786478B014E7FD099947E"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\api\\server.rs",
+    "Hash": "028B437ABFF203F719FFC8C3DC3C95FC89FE9BAF7DDBE54938B9CCAA0B3DBA0D"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\api\\worker.rs",
+    "Hash": "B318CE97F225B68E57EB625474BE17E466D3673013163E75CA40CD48320EE1E2"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\bin\\gemma4.rs",
+    "Hash": "F116B1B7BEB3582361EC5D9EB089856D0A2F2E74FEDAA049BCC77467A955C77A"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\bin\\server.rs",
+    "Hash": "068FE080ED9B9FFEF5679C405AE5607F898E9CBF117FB6B3394AFDB5073D82FE"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\bin\\test_kernels.rs",
+    "Hash": "42DB4E99AE788020726D530D1CD799E647779B7B9912E593401D6981CFFC7516"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\layout.rs",
+    "Hash": "D5C03978E575BEE22489451493A441BB5601F7769126EDDF8BEA7D8BD881A1C3"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\mod.rs",
+    "Hash": "6AD290A49D88482A8A2B8B1655FDC01991DED2CBDC9B96E79D4CFAD8DEA2F98B"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\audio\\mod.rs",
+    "Hash": "E8372AB68755945D922CF5ED9BFAFCB38B716D2AE9E920A79EC1D2E269AD0B38"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\audio\\projection.rs",
+    "Hash": "C522AA1747DF9C9668BB240D972AA4DC692155B15BDED95507C5E00594769799"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\full\\attention.rs",
+    "Hash": "2A4FF8586CB87EDFE3F5570BF591DAD7996D95E9C9E4C940F0238D0E83B094AB"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\full\\mod.rs",
+    "Hash": "527483C00372F446C6B87C9FAEDE58B938035BB80BA957136F3AD8FEE0CD5466"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\full\\projection.rs",
+    "Hash": "B000838C0E3E910A513005AA9CDD70EC1372DF63150AA069AFE17C599182F1E9"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\full\\rmsnorm.rs",
+    "Hash": "F03D05ECAB27F749D26E94CACE17A232C8CE1D387BB9A348CA9BA74EAF79B89A"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\full\\rope.rs",
+    "Hash": "703139F12976B40EF4A75114DF09B751F3A6C8610E19B490F26F9B538F615BA4"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\qkv\\headnorm.rs",
+    "Hash": "406D55BB45DDF14F6A2CDEB248EFA09C360BE737E43EBC89A4222510D5DE4344"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\qkv\\mod.rs",
+    "Hash": "92AC152263F3F9F1B303C2551367BBDA4E0C6721BB3088EAD5F5BC481EF2522D"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\qkv\\pool.rs",
+    "Hash": "C9B214DF19F926F8C157401150131F089E1F2DA6042D8B988F52C9698BA4AFD8"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\qkv\\proj8.rs",
+    "Hash": "6424EE7B647DCE96C7CB41657830A75BDE3E2C57CC743E171663BF6D891F88E0"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\qkv\\rope.rs",
+    "Hash": "E7FFD0CD8650AEFCC6809DFC9E7090EE83DE5B9FE2F5D61C3C7BEF844A5638BE"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\qkv\\xnorm8.rs",
+    "Hash": "6AC4EC4F0FCD8D4FF0F029F56A568B7BD665AD9C382CA674F55101F13AFE6950"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\ffn7.rs",
+    "Hash": "087F4A4FB7E8E051CF8965052C8C8FC230F6E5732AB2ADA6E8D7123436776C3D"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\lm_head.rs",
+    "Hash": "98FE14525460EA811452A97F38E543CDD37231B6269750B69A39B59A8AAA135E"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\mlp.rs",
+    "Hash": "1C4205773BEAE3AC8A7EA8644E52A8C24300AC4F69A1937AEF66F98F4499C4E7"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\mod.rs",
+    "Hash": "B92D5551E6796E82352E0CE0AFAC610C84C6EE2A685C731D3D0752D10F78A2A9"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\residual.rs",
+    "Hash": "9F765DA42C5981D22BE72A700D17D328091A7953A7789CD58C02B741EC1EFAEA"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\rmsnorm.rs",
+    "Hash": "C986BFE8ABD776E891B69252C091EECBB61482A554346B51C7836C52D3D67564"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\attention.rs",
+    "Hash": "3E02A8A2118D27BC10C674285D200FA22EA93C46F4E9E7245D5FCEA2A624C33E"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\mod.rs",
+    "Hash": "2A4D99F00495E9CDADCB4881E684B293332E171CED32AFD91C5C93D6F0E98306"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\output31.rs",
+    "Hash": "BCA4C687EB1BC735E806D0FA5A0E093358B172C91C990D532B53C9A0F0E79E95"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\projection.rs",
+    "Hash": "7D55898842B45F42EDE939730C15A2BC3D860471481D9B2645B5D9FF06DD8969"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\qkv_head_local.rs",
+    "Hash": "E40F4ABFE84DEE3F3BBA2776B164E52382261D83130C7F71193E2FE4A6981C84"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\qkv69382.rs",
+    "Hash": "EC1915FB0223D6EBDCF67513867D35C545BD7112A691BA55D9A7BCD03A56AFA2"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\rmsnorm.rs",
+    "Hash": "7AE1BD9751469667E76698BEAFB71AFC6822D95465067B59CB6CBFE0F31B9095"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\rope.rs",
+    "Hash": "8424E895947797555BE8BA7268CFB5E803760FA37049DBBE3C334FB856BE217E"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\vision\\layernorm.rs",
+    "Hash": "DA4B2CF071C986F80FE4577C2CEAA7D5A4157190E0CF3118AD004EE912549E39"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\vision\\mod.rs",
+    "Hash": "DA48C2C09FC08B2950B7495A88BC7B36E61D6610D2635D9E4DDE173BAE0ECCA8"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\vision\\projection.rs",
+    "Hash": "B0A4E8821F1822B86DC4A45EA80050F61F433937E4FCCFC3B818D0F71868CA85"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\audio.rs",
+    "Hash": "E7FFF79E65EC67CCE8FBB7415A28B52F7D350948E7CCB9287E9AAA6A8F051CE0"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\generate.rs",
+    "Hash": "03939905181EF43716FEB9DD93E52A8E6E19EC51BE0DF9F680AD8B81949AE1CB"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\image.rs",
+    "Hash": "B4903F903073CF4C5B6BC0D8F77667B2F047A112571865CAD0109F690B946F2C"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\load.rs",
+    "Hash": "FB05A5D79A63C92909F64E1D4CDD699556A42B4F369E88E2C0C11D46160AD892"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\mod.rs",
+    "Hash": "4B272852F112093FF750B3823CE1E72DBF1FD635E78E73629C53851D0B53D28C"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\runtime.rs",
+    "Hash": "207E7928F91BBB47DFD3742EFC8F141F0529349E4B7BB243C5A735FF03ED75BC"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\sampling.rs",
+    "Hash": "71EE4A3DDA3662F1242B421636C10C46B0255D6557D85F694B940882DB1A6A11"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\host\\tokenizer.rs",
+    "Hash": "7622D6E546C79BEFC68A93DBAAB8E45F07FEC1ED3DDB381F83A0C868A9CA64CE"
+  }
+]

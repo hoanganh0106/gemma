@@ -1,0 +1,1 @@
+One full down DMA, compute tiled views [(0, 10), (10, 5)]. No arithmetic changes; tile view preserves physical per-slice rows.

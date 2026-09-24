@@ -1,0 +1,1 @@
+P018 tries f8e5m2 only in the down projection: retain both exact quantization terms and all down scales, but encode/decode down activation and f4 down weights through the alternate supported FP8 table. This changes FP8 rounding/precision and requires full Arena correctness before runtime claims.

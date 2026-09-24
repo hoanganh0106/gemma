@@ -1,0 +1,20 @@
+{
+  "best_static_candidate": "C22-fixed-rms-ring16",
+  "source_sha256": "a4803e5982db94e082af9c9581226d1fda0c2451c4c5a969d0726e5302bad416",
+  "schedule_sha256": "90351a4254e74d5de09bf157ff4eb1d51ede48aeb918e572747ad9b34ee1ac59",
+  "baseline_static_cycles": 24718,
+  "candidate_static_cycles": 22317,
+  "baseline_instructions": 44,
+  "candidate_instructions": 42,
+  "cycles_reduction_percent": 9.713569058985355,
+  "illustrative_single_kernel_geomean_gain_percent": 3.464771944875511,
+  "changed_source_files": [
+    "src/device/sliding/output31.rs"
+  ],
+  "dependency_hashes": {
+    "Cargo.toml": "a12ac7d4bb47a3aedf55e2963241bf0336a721a8a686af7b249fbbb979a17cc5",
+    "Cargo.lock": "d3868bb8264fcecd798ac8df1dc11740465d790385a7d518901916c042c08ff6",
+    "rust-toolchain.toml": "7732dbe17f14f13d2bad5afc39ab9ca1b0fe9769c5ea845ff0d093eefb22a789"
+  },
+  "runtime_status": "Parent coordinates frozen integrated hardware packages; no Arena submissions made by K2 subtask."
+}

@@ -1,0 +1,1 @@
+Compute 1/sqrt(t) directly using divider argument swapping rather than sqrt(t)/t; same real arithmetic with changed FP32 rounding.

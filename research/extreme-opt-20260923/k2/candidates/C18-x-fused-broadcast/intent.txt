@@ -1,0 +1,1 @@
+C15 with x loaded once per cluster then explicit F32 switch broadcast fused into both existing quantization passes; every actual x block initialized in first16 slices.

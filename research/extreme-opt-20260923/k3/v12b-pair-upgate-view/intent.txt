@@ -1,0 +1,1 @@
+Repair v12 unsupported tiled-view reshape by retaining its fixed/padded matrix axis in apply_scales input. Real arithmetic unchanged.

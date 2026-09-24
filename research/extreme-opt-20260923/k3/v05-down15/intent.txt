@@ -1,0 +1,1 @@
+One 15-row down tile instead of three5; less LUT provisioning, larger DM/TRF.

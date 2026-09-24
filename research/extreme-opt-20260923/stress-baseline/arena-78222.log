@@ -1,0 +1,43 @@
+NPU kernel tests -- 3 cases x 3 independently-seeded runs against a precomputed reference, with on-device cycle counts
+
+==> sliding_project_qkv
+[sliding_project_qkv q run0        ] diagnostic max tolerance ratio=0.311526
+[sliding_project_qkv q run0        ] max|Δ|=  0.01562 (   0.78% of expected)  mean|Δ|= 0.001074  within tol=100.00%  -> PASS
+[sliding_project_qkv k run0        ] diagnostic max tolerance ratio=0.346901
+[sliding_project_qkv k run0        ] max|Δ|=  0.01562 (   0.68% of expected)  mean|Δ|= 0.001147  within tol=100.00%  -> PASS
+[sliding_project_qkv v run0        ] diagnostic max tolerance ratio=0.439560
+[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.70% of expected)  mean|Δ|= 0.001376  within tol=100.00%  -> PASS
+[sliding_project_qkv q run1        ] diagnostic max tolerance ratio=0.500000
+[sliding_project_qkv q run1        ] max|Δ|=  0.03125 (   1.39% of expected)  mean|Δ|= 0.001056  within tol=100.00%  -> PASS
+[sliding_project_qkv k run1        ] diagnostic max tolerance ratio=0.436681
+[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   0.99% of expected)  mean|Δ|= 0.001052  within tol=100.00%  -> PASS
+[sliding_project_qkv v run1        ] diagnostic max tolerance ratio=0.429185
+[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.95% of expected)  mean|Δ|= 0.001258  within tol=100.00%  -> PASS
+[sliding_project_qkv q run2        ] diagnostic max tolerance ratio=0.414079
+[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001163  within tol=100.00%  -> PASS
+[sliding_project_qkv k run2        ] diagnostic max tolerance ratio=0.392670
+[sliding_project_qkv k run2        ] max|Δ|=  0.02344 (   1.19% of expected)  mean|Δ|= 0.001059  within tol=100.00%  -> PASS
+[sliding_project_qkv v run2        ] diagnostic max tolerance ratio=0.449438
+[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   1.06% of expected)  mean|Δ|= 0.001423  within tol=100.00%  -> PASS
+    median cycles=91470 (of 3 runs: [95987, 90646, 91470])
+
+==> sliding_attention_output
+[sliding_attention_output run0     ] diagnostic max tolerance ratio=0.251889
+[sliding_attention_output run0     ] max|Δ|=  0.01562 (   0.60% of expected)  mean|Δ|= 0.000868  within tol=100.00%  -> PASS
+[sliding_attention_output run1     ] diagnostic max tolerance ratio=0.312500
+[sliding_attention_output run1     ] max|Δ|=  0.03125 (   0.62% of expected)  mean|Δ|= 0.000863  within tol=100.00%  -> PASS
+[sliding_attention_output run2     ] diagnostic max tolerance ratio=0.333333
+[sliding_attention_output run2     ] max|Δ|=  0.03125 (   0.71% of expected)  mean|Δ|= 0.000888  within tol=100.00%  -> PASS
+    median cycles=44432 (of 3 runs: [44144, 44432, 44737])
+
+==> decoder_feedforward
+[decoder_feedforward run0          ] diagnostic max tolerance ratio=0.473934
+[decoder_feedforward run0          ] max|Δ|=  0.00781 (   1.20% of expected)  mean|Δ|= 0.000674  within tol=100.00%  -> PASS
+[decoder_feedforward run1          ] diagnostic max tolerance ratio=0.560000
+[decoder_feedforward run1          ] max|Δ|=  0.00781 (   1.37% of expected)  mean|Δ|= 0.000961  within tol=100.00%  -> PASS
+[decoder_feedforward run2          ] diagnostic max tolerance ratio=0.693802
+[decoder_feedforward run2          ] max|Δ|=  0.01172 (   1.40% of expected)  mean|Δ|= 0.001032  within tol=100.00%  -> PASS
+    median cycles=221797 (of 3 runs: [222836, 221797, 221060])
+
+
+all 3 tests passed

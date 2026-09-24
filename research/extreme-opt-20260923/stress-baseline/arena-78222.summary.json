@@ -1,0 +1,29 @@
+{
+  "log": "research\\extreme-opt-20260923\\stress-baseline\\arena-78222.log",
+  "valid_full_public_harness": false,
+  "all_checks_pass": true,
+  "diagnostic": true,
+  "pass_count": 15,
+  "medians": [
+    91470,
+    44432,
+    221797
+  ],
+  "samples": [
+    [
+      95987,
+      90646,
+      91470
+    ],
+    [
+      44144,
+      44432,
+      44737
+    ],
+    [
+      222836,
+      221797,
+      221060
+    ]
+  ]
+}

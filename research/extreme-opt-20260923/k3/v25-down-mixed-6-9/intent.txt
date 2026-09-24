@@ -1,0 +1,1 @@
+P017 tests a two-tile 6+9 row partition over the same 15 local rows. Every output row and all matrix entries remain included; compilation verifies whether this nonuniform tile mapping is legal on SDK 0.8.1 and whether its overlap improves the schedule.

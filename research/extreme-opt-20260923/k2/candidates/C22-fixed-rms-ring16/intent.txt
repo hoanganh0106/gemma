@@ -1,0 +1,1 @@
+C15 with fixed Broadcast1 slice1=16,slice0=1 for all-gather of sixteen scalar partials. Based on verified K1 Broadcast1 scalar-gather mechanism; identical reduction and scalar arithmetic.

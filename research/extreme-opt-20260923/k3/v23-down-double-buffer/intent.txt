@@ -1,0 +1,1 @@
+P015 explicitly stages the first two independent five-row down-weight tiles before contracting tile 0 to probe DMA scheduling. Both weight tiles remain live through their unchanged, disjoint contractions; all activation terms/scales are retained.

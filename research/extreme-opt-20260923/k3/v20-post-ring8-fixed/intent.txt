@@ -1,0 +1,1 @@
+Replace custom8-way contiguous post-RMS ring with fixed Broadcast1(8,1). Same8physicalneighbors and arithmetic; avoid routing-table provisioning if compiler emits it. Parentv18.

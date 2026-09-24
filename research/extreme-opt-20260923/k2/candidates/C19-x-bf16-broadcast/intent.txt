@@ -1,0 +1,1 @@
+C15 with x loaded once per cluster then one separate BF16 switch broadcast, overlappable with weight DMA; original quantization function retained.

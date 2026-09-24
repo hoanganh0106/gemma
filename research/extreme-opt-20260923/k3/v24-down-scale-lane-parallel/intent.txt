@@ -1,0 +1,1 @@
+P016 tests parallel contraction-lane accumulation in the down scale pass. It keeps the same 480 block products and BF16 block-sum boundary; only FP32 reduction association/mapping changes, so official correctness must confirm tolerances.

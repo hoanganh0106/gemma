@@ -1,0 +1,4 @@
+   Compiling furiosa_opt_gemma4::ops::sliding_project_qkv
+   Compiling furiosa_opt_gemma4::ops::sliding_attention_output
+   Compiling furiosa_opt_gemma4::ops::decoder_feedforward
+    Finished `release` profile [optimized] target(s) in 1m 25s

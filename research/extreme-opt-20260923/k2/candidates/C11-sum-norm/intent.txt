@@ -1,0 +1,1 @@
+Sum normalization: remove divide by H before reduction, scale epsilon by H and SW by sqrt(H); mathematically equivalent with changed FP32 reassociation.

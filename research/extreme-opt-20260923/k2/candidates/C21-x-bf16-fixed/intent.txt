@@ -1,0 +1,1 @@
+C19-x-bf16-broadcast with fixed Broadcast1 16x16 topology instead of generic CustomBroadcast for x replication; identical initialized source slices and mathematical operations.

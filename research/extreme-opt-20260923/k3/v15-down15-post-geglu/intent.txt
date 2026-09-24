@@ -1,0 +1,1 @@
+Combine single down15 tile with direct postRMS and GeGLU VRF. Same per-output arithmetic; removes40+2 instructions, may trade DMA/computation overlap for less issuer overhead.

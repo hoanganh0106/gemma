@@ -1,0 +1,1 @@
+Repair v08 unsupported tiled-view reshape: reshape the full allocated tensor first, then form padded row views for10+5compute. All input values and arithmetic retained.

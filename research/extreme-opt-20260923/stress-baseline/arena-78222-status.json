@@ -1,0 +1,13 @@
+{
+  "id": 78222,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "extreme-baseline-generic-qkv-diagnostic",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T07:19:21Z",
+  "started_at": "2026-09-23T07:23:01Z",
+  "finished_at": "2026-09-23T07:23:08Z",
+  "duration_sec": 6.660523722,
+  "exit_code": 0,
+  "device_id": null
+}

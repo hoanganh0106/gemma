@@ -1,0 +1,1 @@
+Replace padded partial HBM store/load with local and peer SRAM DMA into two contribution slots; arithmetic unchanged. Cluster0 retains original C2 order; cluster1 reversed/discarded as padding. Needs compile and correctness confirmation.

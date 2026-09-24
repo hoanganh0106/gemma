@@ -1,0 +1,442 @@
+[
+  {
+    "variant": "v01-pre-rms-vrf",
+    "source_sha256": "295bac31e389dd7dffbcb7b3a807584f59cf5ce8da3e356d14e41dad9520cdf1",
+    "intent": "Pre RMS Main-to-VRF, same arithmetic/mapping.",
+    "status": "COMPILE_PASS",
+    "cycles": 110599,
+    "instructions": 169,
+    "schedule_sha256": "ae5965f56e498f37792e249fa4969e46ba3c6f8ae707ac5118f3d500997a4e37",
+    "delta_cycles": 79,
+    "duration_by_type": {
+      "Sub": 26796,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v02-post-rms-vrf",
+    "source_sha256": "2be365c82a3a8f21b31c0c6d763b912bfded27d526ab431a13a9bd338d98d03e",
+    "intent": "Post RMS Main-to-VRF, same arithmetic/mapping.",
+    "status": "COMPILE_PASS",
+    "cycles": 110253,
+    "instructions": 169,
+    "schedule_sha256": "d66f79774eb54f115df2d5a1d47f193c64dff5e3333149b3bed2c063d8d98c9d",
+    "delta_cycles": -267,
+    "duration_by_type": {
+      "Sub": 26796,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v03-geglu-vrf",
+    "source_sha256": "c87be2e0eb6a32b5ee89eacd48c82fce2bc4bf94a0aff25acbc2d818c5f75b01",
+    "intent": "GeGLU Sub-to-VRF, same arithmetic/mapping.",
+    "status": "COMPILE_PASS",
+    "cycles": 110520,
+    "instructions": 169,
+    "schedule_sha256": "8a8885deafe01dbe2a05c204cf52d2637d27f7b371e985f0edd56ab7b009c5cc",
+    "delta_cycles": 0,
+    "duration_by_type": {
+      "Sub": 26736,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v04-all-vrf",
+    "source_sha256": "cc737c8d76e5cab9efd5b1abf67f73f2b3ad9819d5c3241b18f60cbf6c9211b0",
+    "intent": "Combine three direct VRF eliminations.",
+    "status": "COMPILE_PASS",
+    "cycles": 110332,
+    "instructions": 167,
+    "schedule_sha256": "6ad7d75af59d6bca2dbfc0506ef71b0623ee77449dfbdb8bae8bd1f54c2fe39b",
+    "delta_cycles": -188,
+    "duration_by_type": {
+      "Sub": 26202,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v05-down15",
+    "source_sha256": "a08605f156aa3bf475ab4ca9701bb001b0207d16fb19a5b1d459b6de787bb097",
+    "intent": "One 15-row down tile instead of three5; less LUT provisioning, larger DM/TRF.",
+    "status": "COMPILE_PASS",
+    "cycles": 113225,
+    "instructions": 130,
+    "schedule_sha256": "b0916b94ac19150a81b9539224900b6d8150efbbb83efa422c5a228e1f73bc17",
+    "delta_cycles": 2705,
+    "duration_by_type": {
+      "Sub": 23951,
+      "DmaLoad": 96844,
+      "Core": 1408,
+      "Main": 43013,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v06-down3",
+    "source_sha256": "6610f0765d1bca8957c4f849fecb6e4e6fbffb255ed9472e24402f830051d89c",
+    "intent": "Five3-row down tiles; tests memory/overlap tradeoff.",
+    "status": "COMPILE_PASS",
+    "cycles": 113457,
+    "instructions": 202,
+    "schedule_sha256": "ccb8da84546a3d71f2247764b162acee14c6db7280e1bfad9e2ccb83be8da1e2",
+    "delta_cycles": 2937,
+    "duration_by_type": {
+      "Sub": 30175,
+      "DmaLoad": 102388,
+      "Core": 1728,
+      "Main": 45133,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v07-flat-up-scales",
+    "source_sha256": "79dd6b75dbab11efd2ac84a14c1cd50773b4873d550be6cd58b8833599f5f104",
+    "intent": "Flatten up/gate scales contiguous 7200 bytes per physical slice before DMA; reshape identical wire order.",
+    "status": "COMPILE_PASS",
+    "cycles": 110520,
+    "instructions": 172,
+    "schedule_sha256": "71e049e63411742118cfdb31078c266694a1b8cf20cbd52d47102db006acf951",
+    "delta_cycles": 0,
+    "duration_by_type": {
+      "Sub": 27063,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v08-down-full-dma-10-5",
+    "source_sha256": "ae7e019e5a5e337fb52a92a516a3e003b0f09b0989c05573afeb78ae16ad825c",
+    "intent": "One full down DMA, compute tiled views [(0, 10), (10, 5)]. No arithmetic changes; tile view preserves physical per-slice rows.",
+    "status": "COMPILE_FAIL",
+    "tail": "  ^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: constant `DS_F32` is never used\n --> src/device/sliding/rmsnorm.rs:7:7\n  |\n7 | const DS_F32: f32 = Ds::SIZE as f32;\n  |       ^^^^^^\n\nwarning: function `normalize_query` is never used\n --> src/device/sliding/rmsnorm.rs:9:15\n  |\n9 | pub(crate) fn normalize_query<Cluster: M, Slice: M>(\n  |               ^^^^^^^^^^^^^^^\n\nwarning: function `load_norm_weight` is never used\n  --> src/device/sliding/rmsnorm.rs:75:4\n   |\n75 | fn load_norm_weight<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `root_mean_square` is never used\n  --> src/device/sliding/rmsnorm.rs:90:4\n   |\n90 | fn root_mean_square<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms_and_weight` is never used\n   --> src/device/sliding/rmsnorm.rs:136:4\n    |\n136 | fn scale_by_rms_and_weight<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms` is never used\n   --> src/device/sliding/rmsnorm.rs:160:4\n    |\n160 | fn scale_by_rms<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^\n\nwarning: function `normalize_key` is never used\n   --> src/device/sliding/rmsnorm.rs:182:15\n    |\n182 | pub(crate) fn normalize_key(\n    |               ^^^^^^^^^^^^^\n\nwarning: function `normalize_value` is never used\n   --> src/device/sliding/rmsnorm.rs:193:15\n    |\n193 | pub(crate) fn normalize_value(\n    |               ^^^^^^^^^^^^^^^\n\nwarning: type alias `KvHeadsAcrossSlices` is never used\n --> src/device/sliding/rope.rs:7:6\n  |\n7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];\n  |      ^^^^^^^^^^^^^^^^^^^\n\nwarning: function `apply_rope` is never used\n --> src/device/sliding/rope.rs:9:15\n  |\n9 | pub(crate) fn apply_rope(\n  |               ^^^^^^^^^^\n\n   Compiling [1/1] ops::decoder_feedforward\nerror: furiosa-opt: ops::decoder_feedforward: visa: while lowering LowLevelReshape\n       caused by: a tiled view is not supported (input T297)\n   --> src/device/shared/ffn7.rs:477:14\n    |\n477 |             .reshape() };\n    |              ^^^^^^^^^\n...\n547 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 0, 10);\n    |     --------------------------------------------------------------------- in this macro invocation\n    |\n    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)\n\n    Finished 1 compiled, 14 not matching ops::decoder_feedforward\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted\n"
+  },
+  {
+    "variant": "v08b-full-dma-10-5-view",
+    "source_sha256": "e801f5ed4b5204f8263af005ff0605d974b8ef8ae6490e3a0f20872da6c97175",
+    "intent": "Repair v08 unsupported tiled-view reshape: reshape the full allocated tensor first, then form padded row views for10+5compute. All input values and arithmetic retained.",
+    "status": "COMPILE_PASS",
+    "cycles": 112185,
+    "instructions": 152,
+    "schedule_sha256": "277916d5d4eb79083ddd9ca6ceb1f11d0ad41c140846bb23ee8148f42397ec16",
+    "delta_cycles": 1665,
+    "duration_by_type": {
+      "Sub": 25507,
+      "DmaLoad": 97682,
+      "Core": 1536,
+      "Main": 43543,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v09-down-full-dma-15",
+    "source_sha256": "66e9f64943a77f6dcc2f2cc5550c9f52539dd89cca78619090a5dc339e5c20bc",
+    "intent": "One full down DMA, compute tiled views [(0, 15)]. No arithmetic changes; tile view preserves physical per-slice rows.",
+    "status": "COMPILE_PASS",
+    "cycles": 113225,
+    "instructions": 130,
+    "schedule_sha256": "f32035f5f1fe11f7aa695170a63c2e73d10455351fbcc76069c6d4ca2197ae39",
+    "delta_cycles": 2705,
+    "duration_by_type": {
+      "Sub": 23951,
+      "DmaLoad": 96844,
+      "Core": 1408,
+      "Main": 43013,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v10-down-full-dma-5",
+    "source_sha256": "1269522e8b41b26df1e8f87a7a82681fec03583b5bedbbd2f9e040d8c0a4a467",
+    "intent": "One full down DMA, compute tiled views [(0, 5), (5, 5), (10, 5)]. No arithmetic changes; tile view preserves physical per-slice rows.",
+    "status": "SKIPPED_KNOWN_LOWERING",
+    "reason": "Not compiled: its tiled-view reshape is the same unsupported lowering already demonstrated by v08. Repaired 10+5 implementation is v08b.\n"
+  },
+  {
+    "variant": "v11-no-warmup",
+    "source_sha256": "d2422a5489fd345fedfe61d661df87d139444b564c1ce806cd688b4e36d01940",
+    "intent": "Remove unused Sub warmup on uninitialized DM. Semantics unchanged; hardware issuer startup behavior may change.",
+    "status": "COMPILE_PASS",
+    "cycles": 110523,
+    "instructions": 168,
+    "schedule_sha256": "3d14dd5e3febf9102f4411db7003614dfb9bdc93ca6f2789fbedf8ead08c355e",
+    "delta_cycles": 3,
+    "duration_by_type": {
+      "Sub": 26796,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v12-pair-upgate",
+    "source_sha256": "4008c569d3061d0515873b421abd6eef72f1d28b93c6ec1c0966d250e06295cd",
+    "intent": "Up/gate packed tensors loaded into separate slices of an extra local matrix axis, then one LUT/contraction pass. Both matrix weights/scales preserved and same accumulation order per output. Saves one decode setup, increases packed live allocation, delays first contraction until both matrices loaded.",
+    "status": "COMPILE_FAIL",
+    "tail": "e/sliding/projection.rs:241:4\n    |\n241 | fn add_partials(\n    |    ^^^^^^^^^^^^\n\nwarning: function `apply_output_channel_scale` is never used\n   --> src/device/sliding/projection.rs:268:4\n    |\n268 | fn apply_output_channel_scale(\n    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: constant `DS_F32` is never used\n --> src/device/sliding/rmsnorm.rs:7:7\n  |\n7 | const DS_F32: f32 = Ds::SIZE as f32;\n  |       ^^^^^^\n\nwarning: function `normalize_query` is never used\n --> src/device/sliding/rmsnorm.rs:9:15\n  |\n9 | pub(crate) fn normalize_query<Cluster: M, Slice: M>(\n  |               ^^^^^^^^^^^^^^^\n\nwarning: function `load_norm_weight` is never used\n  --> src/device/sliding/rmsnorm.rs:75:4\n   |\n75 | fn load_norm_weight<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `root_mean_square` is never used\n  --> src/device/sliding/rmsnorm.rs:90:4\n   |\n90 | fn root_mean_square<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms_and_weight` is never used\n   --> src/device/sliding/rmsnorm.rs:136:4\n    |\n136 | fn scale_by_rms_and_weight<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms` is never used\n   --> src/device/sliding/rmsnorm.rs:160:4\n    |\n160 | fn scale_by_rms<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^\n\nwarning: function `normalize_key` is never used\n   --> src/device/sliding/rmsnorm.rs:182:15\n    |\n182 | pub(crate) fn normalize_key(\n    |               ^^^^^^^^^^^^^\n\nwarning: function `normalize_value` is never used\n   --> src/device/sliding/rmsnorm.rs:193:15\n    |\n193 | pub(crate) fn normalize_value(\n    |               ^^^^^^^^^^^^^^^\n\nwarning: type alias `KvHeadsAcrossSlices` is never used\n --> src/device/sliding/rope.rs:7:6\n  |\n7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];\n  |      ^^^^^^^^^^^^^^^^^^^\n\nwarning: function `apply_rope` is never used\n --> src/device/sliding/rope.rs:9:15\n  |\n9 | pub(crate) fn apply_rope(\n  |               ^^^^^^^^^^\n\n   Compiling [1/1] ops::decoder_feedforward\nerror: furiosa-opt: ops::decoder_feedforward: visa: while lowering LowLevelReshape\n       caused by: a tiled view is not supported (input T268)\n   --> src/device/shared/ffn7.rs:538:158\n    |\n538 | ...le::<m![UG2], 1, m![UG2 = 1 # 2, L % 30, Sb]>(0).reshape() };\n    |                                                     ^^^^^^^^^\n\n    Finished 1 compiled, 14 not matching ops::decoder_feedforward\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted\n"
+  },
+  {
+    "variant": "v12b-pair-upgate-view",
+    "source_sha256": "89f73688c5833bfe2e168d548649176e2244b661fbd4f8696b5ff631232395a6",
+    "intent": "Repair v12 unsupported tiled-view reshape by retaining its fixed/padded matrix axis in apply_scales input. Real arithmetic unchanged.",
+    "status": "COMPILE_PASS",
+    "cycles": 158067,
+    "instructions": 180,
+    "schedule_sha256": "be8ed64fc557740f71206cde03c0461b370c18a3831a4981c40a6a9a8fad7b01",
+    "delta_cycles": 47547,
+    "duration_by_type": {
+      "Sub": 25770,
+      "DmaLoad": 146907,
+      "Core": 1696,
+      "Main": 43810,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v13-sram-partial",
+    "source_sha256": "817924a1dc3338983a3258c9b703808d91b68cc0434a399bba946f3095b62259",
+    "intent": "Replace padded partial HBM store/load with local and peer SRAM DMA into two contribution slots; arithmetic unchanged. Cluster0 retains original C2 order; cluster1 reversed/discarded as padding. Needs compile and correctness confirmation.",
+    "status": "COMPILE_PASS",
+    "cycles": 111816,
+    "instructions": 183,
+    "schedule_sha256": "d72f23d9889799db3c9a218d100c8fe361f149bc620e3e709c17790b58d8ddad",
+    "delta_cycles": 1296,
+    "duration_by_type": {
+      "Sub": 27063,
+      "DmaLoad": 98562,
+      "Core": 2280,
+      "Main": 44073,
+      "DmaStos": 1060,
+      "DmaStore": 648
+    }
+  },
+  {
+    "variant": "v14-post-geglu-vrf",
+    "source_sha256": "f37b4af3ae386f6c747e342329a3056ac669508c5e3e9c3651cbdfe57e715aa9",
+    "intent": "Direct post-RMS and GeGLU VRF only; preserve baseline pre-RMS to avoid its measured79cycle scheduling regression. Arithmetic and BF16 boundaries unchanged.",
+    "status": "COMPILE_PASS",
+    "cycles": 110253,
+    "instructions": 168,
+    "schedule_sha256": "c0a8c0bf7baad47f7f4f0cc10377fc08bc0cbd3fb51cf044ccc91d0d9a002569",
+    "delta_cycles": -267,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 44073,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v15-down15-post-geglu",
+    "source_sha256": "3433def0fadfb738388ba0f5defd93e8e25f5b6fc6523838f3fe588d1c888606",
+    "intent": "Combine single down15 tile with direct postRMS and GeGLU VRF. Same per-output arithmetic; removes40+2 instructions, may trade DMA/computation overlap for less issuer overhead.",
+    "status": "COMPILE_PASS",
+    "cycles": 112958,
+    "instructions": 128,
+    "schedule_sha256": "9199c861bd6a196244fc31cc2ff8763802a964c5613fe163ce7a7cb967dd2fdd",
+    "delta_cycles": 2438,
+    "duration_by_type": {
+      "Sub": 23357,
+      "DmaLoad": 96844,
+      "Core": 1408,
+      "Main": 43013,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v16-ring8",
+    "source_sha256": "97c2c440788ee4f298efc775edc74f058bc374e8b9acf2c5fbcae0720d60ef81",
+    "intent": "Explicit eight-slice switch gather plus intra-slice sum for both RMS reductions, preserving all eight partials and scalar arithmetic. FP32 addition association may change; requires stress correctness. Based on v14-post-geglu-vrf",
+    "status": "COMPILE_PASS",
+    "cycles": 108786,
+    "instructions": 172,
+    "schedule_sha256": "8e8538960fec034dae3d2e0d7d112ebcc854867aa50545ab47779b99b5aaa6bf",
+    "delta_cycles": -1734,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 101055,
+      "Core": 1600,
+      "Main": 42288,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v17-down15-ring8",
+    "source_sha256": "8f46e8f62f2f2e37d8668e86e5dba5fbd951dc0c7c8b4a5762bb735cb517e9d6",
+    "intent": "Explicit eight-slice switch gather plus intra-slice sum for both RMS reductions, preserving all eight partials and scalar arithmetic. FP32 addition association may change; requires stress correctness. Based on v15-down15-post-geglu",
+    "status": "COMPILE_PASS",
+    "cycles": 111491,
+    "instructions": 132,
+    "schedule_sha256": "e05603f38a9f1006c76dc83c001d26a31537757385de1a6c382c1b6f178945e9",
+    "delta_cycles": 971,
+    "duration_by_type": {
+      "Sub": 23357,
+      "DmaLoad": 98282,
+      "Core": 1408,
+      "Main": 41228,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v18-post-ring8",
+    "source_sha256": "ce9e0c16f4e2d7d26cb8fc74182a2ad821bedc16253287969306dad3c839f5e2",
+    "intent": "Explicit ring8 only for the post-RMS reduction; keep pre-RMS baseline schedule to isolate critical-path effects. Same eight partials and scalar arithmetic, FP32 sum association can change. Parent v14-post-geglu-vrf",
+    "status": "COMPILE_PASS",
+    "cycles": 108244,
+    "instructions": 170,
+    "schedule_sha256": "ca0fb3299d46c09e5ecaba4bfa187c4a8ac03640b5f1d9adab7ec999d5fb0af5",
+    "delta_cycles": -2276,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 100336,
+      "Core": 1600,
+      "Main": 42064,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v19-down15-post-ring8",
+    "source_sha256": "15755ee597bbfdf0f993ea56e94172e39b427eb805e17a30c2481499518dd9ce",
+    "intent": "Explicit ring8 only for the post-RMS reduction; keep pre-RMS baseline schedule to isolate critical-path effects. Same eight partials and scalar arithmetic, FP32 sum association can change. Parent v15-down15-post-geglu",
+    "status": "COMPILE_PASS",
+    "cycles": 110949,
+    "instructions": 130,
+    "schedule_sha256": "ac7c0e77295f4749ab40c10f6efcca9fd535f8aa7641f8eb1df1ef11db9d6dc5",
+    "delta_cycles": 429,
+    "duration_by_type": {
+      "Sub": 23357,
+      "DmaLoad": 97563,
+      "Core": 1408,
+      "Main": 41004,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v20-post-ring8-fixed",
+    "source_sha256": "b75a1f551b4e299e29dc4723c021f171673febb6503ada6a163e11b6c89b1211",
+    "intent": "Replace custom8-way contiguous post-RMS ring with fixed Broadcast1(8,1). Same8physicalneighbors and arithmetic; avoid routing-table provisioning if compiler emits it. Parentv18.",
+    "status": "COMPILE_PASS",
+    "cycles": 108244,
+    "instructions": 169,
+    "schedule_sha256": "ac93b9d6339f08e4773fa11e23e6bfc2f9ec9c80df45a487973cae4f61532504",
+    "delta_cycles": -2276,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 42064,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v21-down-tile-order",
+    "source_sha256": "b75a1f551b4e299e29dc4723c021f171673febb6503ada6a163e11b6c89b1211",
+    "intent": "P013 tests whether reordering the three independent five-row down tiles changes compiler scheduling/overlap. Disjoint output tiles preserve each output's arithmetic and all inputs. Based on P005.\n",
+    "status": "PENDING"
+  },
+  {
+    "variant": "v22-down-prefetch-first",
+    "source_sha256": "230ac947caf038572ee9fb80706f9aad3a303a51be8283688cf4d29783e553ce",
+    "intent": "P014 prefetches the first five-row down-weight tile while GeGLU output is still being computed. The load is independent of activation values; contraction still waits for finalized quantized activation. Other down tiles remain serial and all scales/arithmetic are preserved.\n",
+    "status": "COMPILE_PASS",
+    "cycles": 108244,
+    "instructions": 169,
+    "schedule_sha256": "4bf6cd6ea1936a885608400dc662163928d80c818b606481e41546e984d7a3b4",
+    "delta_cycles": -2276,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 42064,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v23-down-double-buffer",
+    "source_sha256": "6f870ea946c3393e39569a56253b1be15520b92681c48cbaf02da875f78afc12",
+    "intent": "P015 explicitly stages the first two independent five-row down-weight tiles before contracting tile 0 to probe DMA scheduling. Both weight tiles remain live through their unchanged, disjoint contractions; all activation terms/scales are retained.\n",
+    "status": "COMPILE_PASS",
+    "cycles": 108244,
+    "instructions": 169,
+    "schedule_sha256": "1b6263ce48a8512c5052db2927471593e49f846f18f1c2cc65da871458d3f3fe",
+    "delta_cycles": -2276,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 42064,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v24-down-scale-lane-parallel",
+    "source_sha256": "874e2524c38078ba4110132e6b6c7caf524002a86b6208e4c933e30508ded54e",
+    "intent": "P016 tests parallel contraction-lane accumulation in the down scale pass. It keeps the same 480 block products and BF16 block-sum boundary; only FP32 reduction association/mapping changes, so official correctness must confirm tolerances.\n",
+    "status": "COMPILE_FAIL",
+    "tail": "99]: no variant, associated function, or constant named `Parallel` found for enum `furiosa_opt_std::prelude::LaneMode` in the current scope\n   --> src/device/shared/ffn7.rs:500:74\n    |\n500 |             .contract_lane::<m![H / 2 % 15 = $len], m![1 # 8]>(LaneMode::Parallel)\n    |                                                                          ^^^^^^^^ variant, associated function, or constant not found in `furiosa_opt_std::prelude::LaneMode`\n...\n543 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 0, 5);\n    |     -------------------------------------------------------------------- in this macro invocation\n    |\n    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)\n\nerror[E0599]: no variant, associated function, or constant named `Parallel` found for enum `furiosa_opt_std::prelude::LaneMode` in the current scope\n   --> src/device/shared/ffn7.rs:500:74\n    |\n500 |             .contract_lane::<m![H / 2 % 15 = $len], m![1 # 8]>(LaneMode::Parallel)\n    |                                                                          ^^^^^^^^ variant, associated function, or constant not found in `furiosa_opt_std::prelude::LaneMode`\n...\n544 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 5, 5);\n    |     -------------------------------------------------------------------- in this macro invocation\n    |\n    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)\n\nerror[E0599]: no variant, associated function, or constant named `Parallel` found for enum `furiosa_opt_std::prelude::LaneMode` in the current scope\n   --> src/device/shared/ffn7.rs:500:74\n    |\n500 |             .contract_lane::<m![H / 2 % 15 = $len], m![1 # 8]>(LaneMode::Parallel)\n    |                                                                          ^^^^^^^^ variant, associated function, or constant not found in `furiosa_opt_std::prelude::LaneMode`\n...\n545 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 10, 5);\n    |     --------------------------------------------------------------------- in this macro invocation\n    |\n    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)\n\nFor more information about this error, try `rustc --explain E0599`.\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 3 previous errors; 1 warning emitted\n"
+  },
+  {
+    "variant": "v25-down-mixed-6-9",
+    "source_sha256": "01e182fc4763af4b8f6b4ea41cb87e0c65a6bc33d92db9c5a75a779b882f4a86",
+    "intent": "P017 tests a two-tile 6+9 row partition over the same 15 local rows. Every output row and all matrix entries remain included; compilation verifies whether this nonuniform tile mapping is legal on SDK 0.8.1 and whether its overlap improves the schedule.\n",
+    "status": "COMPILE_FAIL",
+    "tail": "\n\nwarning: function `load_norm_weight` is never used\n  --> src/device/sliding/rmsnorm.rs:75:4\n   |\n75 | fn load_norm_weight<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `root_mean_square` is never used\n  --> src/device/sliding/rmsnorm.rs:90:4\n   |\n90 | fn root_mean_square<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms_and_weight` is never used\n   --> src/device/sliding/rmsnorm.rs:136:4\n    |\n136 | fn scale_by_rms_and_weight<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms` is never used\n   --> src/device/sliding/rmsnorm.rs:160:4\n    |\n160 | fn scale_by_rms<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^\n\nwarning: function `normalize_key` is never used\n   --> src/device/sliding/rmsnorm.rs:182:15\n    |\n182 | pub(crate) fn normalize_key(\n    |               ^^^^^^^^^^^^^\n\nwarning: function `normalize_value` is never used\n   --> src/device/sliding/rmsnorm.rs:193:15\n    |\n193 | pub(crate) fn normalize_value(\n    |               ^^^^^^^^^^^^^^^\n\nwarning: type alias `KvHeadsAcrossSlices` is never used\n --> src/device/sliding/rope.rs:7:6\n  |\n7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];\n  |      ^^^^^^^^^^^^^^^^^^^\n\nwarning: function `apply_rope` is never used\n --> src/device/sliding/rope.rs:9:15\n  |\n9 | pub(crate) fn apply_rope(\n  |               ^^^^^^^^^^\n\n   Compiling [1/1] ops::decoder_feedforward\nerror: furiosa-opt: ops::decoder_feedforward: visa: src RngdShape { region: Dram, chip: [], cluster: [Dummy=2], pe: [Dummy=4], dmn: [Dummy=2], slice: [Dummy=32], local: [H_30=128:460800, Dummy=2:230400, H_1=15:15360, L_1=15360:1], padded_tail_size: 1 }, dst RngdShape { region: Sram, chip: [], cluster: [L_7680=2], pe: [H_960=4], dmn: [H_480=2], slice: [H_30=16, H_1=2], local: [H_2=6:7680, L_1=7680:1], padded_tail_size: 1 }\n       caused by: cannot factorize common axis H\n   --> src/device/shared/ffn7.rs:470:14\n    |\n470 |             .to_dm(&mut $device.tdma);\n    |              ^^^^^^^^^^^^^^^^^^^^^^^^\n...\n543 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 0, 6);\n    |     -------------------------------------------------------------------- in this macro invocation\n    |\n    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)\n\n    Finished 1 compiled, 14 not matching ops::decoder_feedforward\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted\n"
+  },
+  {
+    "variant": "v26-f8e5m2-down",
+    "source_sha256": "071a8ba836e118f6c6b451f93ebf59752d28d80267f9b63f35d850c799de65d5",
+    "intent": "P018 tries f8e5m2 only in the down projection: retain both exact quantization terms and all down scales, but encode/decode down activation and f4 down weights through the alternate supported FP8 table. This changes FP8 rounding/precision and requires full Arena correctness before runtime claims.\n",
+    "status": "COMPILE_PASS",
+    "cycles": 108244,
+    "instructions": 169,
+    "schedule_sha256": "671401cb14eedd6585413f91af875384ae84e5963ccff7627c6167f1249a40d6",
+    "delta_cycles": -2276,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 42064,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v27-down-scale-interleaved",
+    "source_sha256": "26796ff66932ff5fac7521c2197b28c1f2918227b5468ab5cf1a42625f4b27cf",
+    "intent": "P019 maps the eight contraction lanes as Interleaved rather than Sequential only in the down scale pass. It retains every product and the FP32 accumulator but changes lane-fold placement/association. Compile and public correctness are required before considering it.\n",
+    "status": "COMPILE_PASS",
+    "cycles": 108244,
+    "instructions": 169,
+    "schedule_sha256": "c0fd2476e324c89ab8a9fceee738cfea1e10290636908a98294dc6bb150a41ca",
+    "delta_cycles": -2276,
+    "duration_by_type": {
+      "Sub": 26469,
+      "DmaLoad": 99617,
+      "Core": 1600,
+      "Main": 42064,
+      "DmaStore": 1163
+    }
+  },
+  {
+    "variant": "v28-down-bf16-exact",
+    "source_sha256": "8d958753127f8bd8acdd190a7f0a1274069e726b05526191a597f2eb4b657526",
+    "intent": "P023 exact representation probe: use GeGLU BF16 output directly for down activation; decode each f4 weight tile through two supported exact tables f4->f8->BF16; BF16 x BF16 contraction. The BF16 down scale/global scales remain in their original order. Removes the down quantization gain and its exact inverse. Static schedule only before Arena consideration.\n",
+    "status": "COMPILE_FAIL",
+    "tail": "1 --out-dir /tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps -L dependency=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps --extern furiosa_opt_std=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libfuriosa_opt_std-2227abdbd5fae3a0.rmeta --extern image=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libimage-b63e02e32fa7ba70.rmeta --extern llm_tokenizer=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libllm_tokenizer-9fc1b147ac138280.rmeta --extern memmap2=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libmemmap2-ae44ce924e686add.rmeta --extern num_traits=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libnum_traits-bda7def6915a0c8c.rmeta --extern rand=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/librand-ae59932330f9a1db.rmeta --extern safetensors=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libsafetensors-ebbd4036f8929a23.rmeta --extern serde=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libserde-2239c2dc1ad8730e.rmeta --extern serde_json=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libserde_json-5d54f4adcd78ca43.rmeta --extern tokio=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libtokio-58b0f4dc284e769b.rmeta --extern tracing=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libtracing-769111fcc359f640.rmeta '--cfg=backend=\"npu\"' -Zmir-opt-level=0 -Zalways-encode-mir -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/furiosa-mapping-8205a1c76e411625/out/furiosa-mapping-impl-target/x86_64-unknown-linux-gnu/release -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/furiosa-opt-lower-8739c1e7be789539/out/furiosa-opt-lower-impl-target/x86_64-unknown-linux-gnu/release -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/ring-78406d4772cbfa38/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/esaxx-rs-d020e994a95e1156/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/onig_sys-1e8635d374065ac0/out` (signal: 6, SIGABRT: process abort signal)\n"
+  }
+]

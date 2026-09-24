@@ -1,0 +1,1 @@
+P023 exact representation probe: use GeGLU BF16 output directly for down activation; decode each f4 weight tile through two supported exact tables f4->f8->BF16; BF16 x BF16 contraction. The BF16 down scale/global scales remain in their original order. Removes the down quantization gain and its exact inverse. Static schedule only before Arena consideration.

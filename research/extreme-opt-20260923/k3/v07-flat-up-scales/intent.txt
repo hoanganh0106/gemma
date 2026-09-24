@@ -1,0 +1,1 @@
+Flatten up/gate scales contiguous 7200 bytes per physical slice before DMA; reshape identical wire order.

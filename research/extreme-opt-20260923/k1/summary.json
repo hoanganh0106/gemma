@@ -1,0 +1,139 @@
+[
+  {
+    "probe": "p01-rms-vrf",
+    "source_sha256": "8ddbbd47d6e4008e49278768a109e049149db389159f403fd05961d88cb53b5a",
+    "cycles": 42124,
+    "instructions": 151,
+    "schedule_sha256": "0835928ce70b292d9d6bb9269cc844d4baddcce61fafd3e770f75541f4de18c0"
+  },
+  {
+    "probe": "p02-rope-vrf",
+    "source_sha256": "b7c600a67a0d2cfbf40a9b62bd5c92ec33b03dfa7dbf0a55df168e110ec88cef",
+    "cycles": 42689,
+    "instructions": 152,
+    "schedule_sha256": "b64265ab574acefe4ac7f18384562a90e42f53248bf72697a4714657100ec151"
+  },
+  {
+    "probe": "p03-input-rms-vrf",
+    "source_sha256": "29b8ddb8a3c0fb1e504909cbb524bb4bf1d60661ea708b70ab2a8845a5804c16",
+    "cycles": 42539,
+    "instructions": 153,
+    "schedule_sha256": "dd0fd87a78aec15675a86f0dc07fcfc0aa3ca999574cd09b35249a5223e8e363"
+  },
+  {
+    "probe": "p04-rope-dm",
+    "source_sha256": "79bebb48d205469818b99f1e7d767a06bfde975e46486776aa4f44dcbe027872",
+    "cycles": 43923,
+    "instructions": 157,
+    "schedule_sha256": "3f88fb9dc249e0c8c563401947dbbd235dab748a8cf84bdda5ea4ccf0d4893ed"
+  },
+  {
+    "probe": "p05-input-trf",
+    "source_sha256": "6afaecbc9c416035f3d4ece594c1d52a44067998802768aa37000e381909b38d",
+    "error": "error: furiosa-opt: ops::sliding_project_qkv: visa: while lowering StoTrf\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted"
+  },
+  {
+    "probe": "p06-all-vrf",
+    "source_sha256": "69307a0bd7eac2a543ba6614dcf8f2dfb4ab2382e02df45e3ec67e16ba217e7c",
+    "cycles": 41924,
+    "instructions": 148,
+    "schedule_sha256": "478f496a45f23ec44d7e002121111edca0ad932f5396062cb8b6a51cf7f3fe47"
+  },
+  {
+    "probe": "p07-quant-scale-vrf",
+    "source_sha256": "75a22b7e51868d11f643f97af247074060e0d58773ec2d7261ef42b3f7cfae2f",
+    "error": "error: furiosa-opt: ops::sliding_project_qkv: mir: unsupported type in device function: Alias(AliasTy { args: [furiosa_opt_std::backend::Npu, f32], kind: Projection { def_id: DefId(20:5393 ~ furiosa_opt_std[2d90]::backend::Backend::Storage) }, .. })\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted"
+  },
+  {
+    "probe": "p07b-quant-scale-vrf",
+    "source_sha256": "adef5959c015461da6d21354f9b964a9e1a91d737ab42d5a7082f68c75839f2b",
+    "cycles": 42539,
+    "instructions": 152,
+    "schedule_sha256": "42bddfb6719cfe46c47b16fbba600373e4fa26011b8571b68c2c92162e35c37e"
+  },
+  {
+    "probe": "p08-switch-trf",
+    "source_sha256": "d41f336ea316f83daf1cc4b42cc7adb71920586d25f21b42f049b5b2bddc2936",
+    "error": "error: furiosa-opt: ops::sliding_project_qkv: mir: `to_trf` element mismatch: [time_inner, Packet] != Element: (H / 8 % 15, H / 120, H % 8 # 32) != (H / 8 % 15, H / 120, H % 8)\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted"
+  },
+  {
+    "probe": "p09-parallel-v-exact",
+    "source_sha256": "e3f7018ef0b8dbe82da3422b64345007415eeaf48978503da4d13baedc03be37",
+    "cycles": 43388,
+    "instructions": 155,
+    "schedule_sha256": "5d9810ba54cea5fa267108d78913ad79fb84c040218747ab86b21e0c3875ef03"
+  },
+  {
+    "probe": "p10-a010-parallel-v",
+    "source_sha256": "7d62a6058316a0a501008233a5432f1114f43f9648a86b061c5d31723b50ab31",
+    "cycles": 42237,
+    "instructions": 151,
+    "schedule_sha256": "f77c9eb158e8bb8e5fcc5af285787a349fca449316273e3a19783ddc95529a1a"
+  },
+  {
+    "probe": "p11-fused-gather-scale",
+    "source_sha256": "e4fa8b13c83e4b77dd053356aaf3e78fd795b8063b8d7cc68b3ad87beabe6a38",
+    "cycles": 41712,
+    "instructions": 148,
+    "schedule_sha256": "bded14381771ed3c5161f8d85f1d75d0210203a7e84e88fa47c4fa5d114707a9"
+  },
+  {
+    "probe": "p12-fused-gather-rms-vrf",
+    "source_sha256": "f5ca53dac6827835aeb7715a92e2ba323900bedf9e26f61db5ea4d452bf9c92e",
+    "cycles": 42031,
+    "instructions": 145,
+    "schedule_sha256": "90ba7cdb2d78ed51cff239751c0e87e135968d67e127e0d72497a19819dfd9c9"
+  },
+  {
+    "probe": "p13-rope-broadcast",
+    "source_sha256": "15281851f57ff49d81a14a29ddba200fd000cdcdf18e2fc8f9c8fb49591cd021",
+    "cycles": 53560,
+    "instructions": 142,
+    "schedule_sha256": "578f0370ae03f13f568693afe57553a99c71b8628feba462addd898a70add3cb"
+  },
+  {
+    "probe": "p14-rope-head-broadcast",
+    "source_sha256": "b1d52a876bb8dd33758db72a6df696f81c5ea9ea2de842e3b2564549477f2e28",
+    "cycles": 39823,
+    "instructions": 142,
+    "schedule_sha256": "0c7213ac1e4d9d67b47d325b3058e1617ab5e1bc0411c7ebe4e28bebe4a3465a"
+  },
+  {
+    "probe": "p15-fused-rope-head-broadcast",
+    "source_sha256": "fd035d3a19dab1a88f2278cbd2603beb4f84bf8dcc96a43858e11aefd5213b12",
+    "cycles": 39698,
+    "instructions": 136,
+    "schedule_sha256": "db11fd772dbc3e1cd100551806a9e3643a831f00e4fa1a673c02e3454eeda23d"
+  },
+  {
+    "probe": "p16-rope-input-ring32",
+    "source_sha256": "b31ff568d81a686d4f0ed4d4a20b3dbc5c4a08bcbd7e6fb7763ea20c971a1ebc",
+    "error": "error: furiosa-opt: ops::sliding_project_qkv: mir: Switch snoop bitmap disagrees with the (OutSlice x OutTime) enumeration at output slice 1\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted"
+  },
+  {
+    "probe": "p16b-rope-input-broadcast32",
+    "source_sha256": "d6e77fa6ff01045e12d17b093f7b49f12faa81cc9350b28a1f3e138e424ddac9",
+    "cycles": 39823,
+    "instructions": 142,
+    "schedule_sha256": "098f688f51a6ecc4dab96f3b396c5c79698fa0b1a969934e4314a33c9ee33dcb"
+  },
+  {
+    "probe": "p17-parallel-v-exact-ring64",
+    "source_sha256": "17595f2d480ac3c67cd0daba2f1d2396f323aa949586dd3da31a80882e7e24a1",
+    "cycles": 42734,
+    "instructions": 156,
+    "schedule_sha256": "3a58a9000dfe745119e6eaf2cb3989181c9d98704a9d68dc9f9d4db8660d306e"
+  },
+  {
+    "probe": "p18-rope-kv-stripe",
+    "source_sha256": "8c52b5e1e687f69530c030780aa56c6e86d1412273a4d04d29ad2b24ad4d0027",
+    "error": "error: furiosa-opt: ops::sliding_project_qkv: mir: vector_fp_binary: the VRF operand is partitioned Qs / 2048 % 2 at Cluster, but the stream it feeds is Ns / 4. A VE op reads at each slice what that slice holds, so the two must agree; restate the operand with `VrfTensor::reshape`.\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 101 warnings emitted"
+  },
+  {
+    "probe": "p18b-rope-kv-stripe",
+    "source_sha256": "98e621d8ef4c24e8115a76fdc6758a383e12887119538a73711b9459f0a7ec63",
+    "cycles": 39869,
+    "instructions": 145,
+    "schedule_sha256": "a44167c11f9df3f9093b560cd0593b9372d876cba9fc3631a4b21df22f068a41"
+  }
+]

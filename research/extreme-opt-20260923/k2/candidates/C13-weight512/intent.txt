@@ -1,0 +1,1 @@
+Retile projection from 120 rows x 256 columns to 60 x 512 on each slice. Still all 256 slices and identical FP8 weight volume; doubles contiguous HBM segment, halves strided rows. Same two-level x quantization and BF16 projection boundary; changed FP32 reduction grouping.

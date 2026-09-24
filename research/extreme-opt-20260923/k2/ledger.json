@@ -1,0 +1,192 @@
+[
+  {
+    "candidate": "C01-invrms-vrf",
+    "intent": "Port exact prior direct VRF inverse RMS.",
+    "source_sha256": "18d489a14a02d33dd1bb88783cf60bcf9588849c7d042f7d1bc9fc063448e8c5",
+    "status": "COMPILE_PASS",
+    "cycles": 24451,
+    "instructions": 43,
+    "schedule_sha256": "433c1390e2557e5ad0661b8ca4161ad489efdb5cf9312de4c70d22cf252a39c3"
+  },
+  {
+    "candidate": "C02-sw-vrf",
+    "intent": "Direct Main SW producer into VRF; preserve multiplication.",
+    "source_sha256": "89c0e00b052f5a6c9031338fae452c202ae4b57c8b0f538b79d79561b55834d9",
+    "status": "COMPILE_PASS",
+    "cycles": 24409,
+    "instructions": 42,
+    "schedule_sha256": "9d4ca7b643f2bfe691e294cd50fd7f8cc757436809685c6287edc4b49e570390"
+  },
+  {
+    "candidate": "C03-sw-vrf-clean",
+    "intent": "C02 plus remove identity output reshape.",
+    "source_sha256": "5a6467f0ee4f0bdfed8a290112fca8dac35a3c207bf8f662d1159f5a12bcbbf7",
+    "status": "COMPILE_PASS",
+    "cycles": 24409,
+    "instructions": 41,
+    "schedule_sha256": "79d5be03ef3646b8a165ef010f7330497164ac1c862b4026d8a4fd0e98a31972"
+  },
+  {
+    "candidate": "C04-sw-sub",
+    "intent": "Compute SW using Sub vector context directly into VRF.",
+    "source_sha256": "e109866b7bcc33ce171f46ac10f744ec539a4aed65396bdff184c09d701da69f",
+    "status": "COMPILE_PASS",
+    "cycles": 24410,
+    "instructions": 41,
+    "schedule_sha256": "3138934166d82890ad11a626b31786c9368864ff3a4f735e7dd5f336802826f7"
+  },
+  {
+    "candidate": "C05-inv-sub",
+    "intent": "C04 plus inverse RMS on Sub.",
+    "source_sha256": "6a71d7ecaa226466664070217b4297d7cb7d8032af62e56afdd958fd2fed922a",
+    "status": "COMPILE_PASS",
+    "cycles": 24416,
+    "instructions": 41,
+    "schedule_sha256": "9da211618e5ea85fada9a5a91f3396769bc0e8584f96e8cdd827ba8f3dde6976"
+  },
+  {
+    "candidate": "C06-tail240",
+    "intent": "C04 with 16 groups of 240 values; same global H sum.",
+    "source_sha256": "a3d6197606724d0ecadc6c9b07c54623b18612635cb9d1d438a8cd573754b6ed",
+    "status": "COMPILE_PASS",
+    "cycles": 24318,
+    "instructions": 41,
+    "schedule_sha256": "3dc0c95c1e94dd77e85d767bcb9b2b56815d05d8338c757bbf4557824af20eae"
+  },
+  {
+    "candidate": "C07-tail960",
+    "intent": "C04 with 4 groups of 960 values; same global H sum.",
+    "source_sha256": "c13ee829bd25b9c03182b50fa467a9fd0b668d31db2cce57d90a94353b48dd63",
+    "status": "COMPILE_PASS",
+    "cycles": 26618,
+    "instructions": 41,
+    "schedule_sha256": "676f1b9718bec9c27d324768bf42f50b35d0969e7a0b2c59cd378f49706fca55"
+  },
+  {
+    "candidate": "C08-local-scalar",
+    "intent": "Keep BF16 projections local; exchange only scalar mean-square via cluster_swap; preserve all scales and residual. Reduction tree changes but FP32 operations remain.",
+    "source_sha256": "3b2939fc659486a097f0f7966ab9e686c5b7cd4968b13ac3c10b3277cfce5755",
+    "status": "COMPILE_FAIL",
+    "log_tail": "^^\n\nwarning: function `root_mean_square` is never used\n  --> src/device/sliding/rmsnorm.rs:90:4\n   |\n90 | fn root_mean_square<Cluster: M, Slice: M>(\n   |    ^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms_and_weight` is never used\n   --> src/device/sliding/rmsnorm.rs:136:4\n    |\n136 | fn scale_by_rms_and_weight<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^^^^^^^^^^^^\n\nwarning: function `scale_by_rms` is never used\n   --> src/device/sliding/rmsnorm.rs:160:4\n    |\n160 | fn scale_by_rms<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^\n\nwarning: function `normalize_key` is never used\n   --> src/device/sliding/rmsnorm.rs:182:15\n    |\n182 | pub(crate) fn normalize_key(\n    |               ^^^^^^^^^^^^^\n\nwarning: function `normalize_value` is never used\n   --> src/device/sliding/rmsnorm.rs:193:15\n    |\n193 | pub(crate) fn normalize_value(\n    |               ^^^^^^^^^^^^^^^\n\nwarning: type alias `KvHeadsAcrossSlices` is never used\n --> src/device/sliding/rope.rs:7:6\n  |\n7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];\n  |      ^^^^^^^^^^^^^^^^^^^\n\nwarning: function `apply_rope` is never used\n --> src/device/sliding/rope.rs:9:15\n  |\n9 | pub(crate) fn apply_rope(\n  |               ^^^^^^^^^^\n\n   Compiling [1/1] ops::sliding_attention_output\nerror: furiosa-opt: ops::sliding_attention_output: visa: while lowering TensorUnit\n       caused by: VRU reduce axes must be innermost in Partitioning, got reduce_labels=[AxisTagLabel { inner: \"H\" }]\n   --> src/device/sliding/output31.rs:183:52\n    |\n183 |         .vector_final().commit_trim::<m![1 # 8]>().commit();\n    |                                                    ^^^^^^^^\n\n    Finished 1 compiled, 14 not matching ops::sliding_attention_output\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 103 warnings emitted\n"
+  },
+  {
+    "candidate": "C09-tail120",
+    "intent": "C04 with 32 groups of 120 values in tail.",
+    "source_sha256": "b96788aa8ba24328cad35734dabbd7a31dc3f4fab2c2ceb2cb9924a71fb2e299",
+    "status": "COMPILE_PASS",
+    "cycles": 24396,
+    "instructions": 41,
+    "schedule_sha256": "75961935dbfd7b3c367634536a7ad051cc00b184d4976e814260bc391db760df"
+  },
+  {
+    "candidate": "C10-tail1920",
+    "intent": "C04 with two groups of 1920 values in tail; register pressure probe.",
+    "source_sha256": "67649bd40d265098b14da14cf3a23e984dbfa17cf2f3bb8a0aadcb9e38cadd96",
+    "status": "COMPILE_FAIL",
+    "log_tail": "\n\nwarning: function `scale_by_rms` is never used\n   --> src/device/sliding/rmsnorm.rs:160:4\n    |\n160 | fn scale_by_rms<Cluster: M, Slice: M>(\n    |    ^^^^^^^^^^^^\n\nwarning: function `normalize_key` is never used\n   --> src/device/sliding/rmsnorm.rs:182:15\n    |\n182 | pub(crate) fn normalize_key(\n    |               ^^^^^^^^^^^^^\n\nwarning: function `normalize_value` is never used\n   --> src/device/sliding/rmsnorm.rs:193:15\n    |\n193 | pub(crate) fn normalize_value(\n    |               ^^^^^^^^^^^^^^^\n\nwarning: type alias `KvHeadsAcrossSlices` is never used\n --> src/device/sliding/rope.rs:7:6\n  |\n7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];\n  |      ^^^^^^^^^^^^^^^^^^^\n\nwarning: function `apply_rope` is never used\n --> src/device/sliding/rope.rs:9:15\n  |\n9 | pub(crate) fn apply_rope(\n  |               ^^^^^^^^^^\n\n   Compiling [1/1] ops::sliding_attention_output\nerror: furiosa-opt: ops::sliding_attention_output: visa: V1 failed for all operator schedule heuristics:\n         DfsPostOrder: BeamSearch failed after the beam shrank to zero at step 29/430; most frequent terminal error (2/2): Cannot find evict target for Vrf (required: AllocRequest { wait_targets: [], size: 3932160 })\n         SethiUllman: BeamSearch failed after the beam shrank to zero at step 29/430; most frequent terminal error (2/2): Cannot find evict target for Vrf (required: AllocRequest { wait_targets: [], size: 3932160 })\n   --> src/ops.rs:128:1\n    |\n128 | #[device(chip = 1)]\n    | ^^^^^^^^^^^^^^^^^^^\n    |\n    = note: this error originates in the attribute macro `device` (in Nightly builds, run with -Z macro-backtrace for more info)\n\n    Finished 1 compiled, 14 not matching ops::sliding_attention_output\nerror: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 99 warnings emitted\n"
+  },
+  {
+    "candidate": "C11-sum-norm",
+    "intent": "Sum normalization: remove divide by H before reduction, scale epsilon by H and SW by sqrt(H); mathematically equivalent with changed FP32 reassociation.",
+    "source_sha256": "f290c50cb79bbe8e8b42d1fe859222d77a369f69fc2886459d5f15dc580ca2c4",
+    "status": "COMPILE_PASS",
+    "cycles": 24410,
+    "instructions": 41,
+    "schedule_sha256": "daf6ce45299b46de7820f319ac70128b4c778d39a5f7ccabcddb4ab02a120dfd"
+  },
+  {
+    "candidate": "C12-direct-reciprocal",
+    "intent": "Compute 1/sqrt(t) directly using divider argument swapping rather than sqrt(t)/t; same real arithmetic with changed FP32 rounding.",
+    "source_sha256": "f4e01466421173e694b7a25aa14b9cbe5ffca3423ec0bb28e364d5e0df22ef86",
+    "status": "COMPILE_PASS",
+    "cycles": 24410,
+    "instructions": 41,
+    "schedule_sha256": "5039fe64173f8e242eaa4e2c36671cb468fcfe0d9a510aaa9f9d39cce3cc6faf"
+  },
+  {
+    "candidate": "C13-weight512",
+    "intent": "Retile projection from 120 rows x 256 columns to 60 x 512 on each slice. Still all 256 slices and identical FP8 weight volume; doubles contiguous HBM segment, halves strided rows. Same two-level x quantization and BF16 projection boundary; changed FP32 reduction grouping.",
+    "source_sha256": "143bb630c3b519edbb12af8c9097d6d87d9c22e0cd1c99bcfaaf857640c5983e",
+    "status": "COMPILE_PASS",
+    "cycles": 24850,
+    "instructions": 41,
+    "schedule_sha256": "be138275fc83b44179ab27fe0193cd495fde65d81eb1d81f261ba97e1ef50dfd"
+  },
+  {
+    "candidate": "C14-ring8",
+    "intent": "Replace global inter-slice reduction with explicit eight-slice switch gather and intra-slice sum. Scalar epsilon/sqrt/div unchanged; all eight partials participate, changed FP32 sum grouping.",
+    "source_sha256": "84b6eb69b2d02050b43ef64764f088a480c46549a99f0ee534a9942c5f342bd1",
+    "status": "COMPILE_PASS",
+    "cycles": 22400,
+    "instructions": 43,
+    "schedule_sha256": "d5bfed4bcaa7da54345be83d2b8527c221070ac2820d809745e921f88a4b6c31"
+  },
+  {
+    "candidate": "C15-ring16-tail240",
+    "intent": "C14 explicit ring gather with 16 groups of 240 values; retain all H and all scalar arithmetic.",
+    "source_sha256": "f35b137c59decf5c97f8203b36b5fae60349fbe75618c9d44f7157bdd3f4d472",
+    "status": "COMPILE_PASS",
+    "cycles": 22317,
+    "instructions": 43,
+    "schedule_sha256": "80240a5b937b4e51f9ba5cec746b50c15ac42f9c3a043c7a1f27f60343996f86"
+  },
+  {
+    "candidate": "C16-ring32-tail120",
+    "intent": "C14 explicit ring gather with 32 groups of 120 values; retain all H and all scalar arithmetic.",
+    "source_sha256": "1c1c718d7e2da78f8c0dbc31c87d251736a2797264bdc6754a5b1cf1a7717fa4",
+    "status": "COMPILE_PASS",
+    "cycles": 22411,
+    "instructions": 43,
+    "schedule_sha256": "37f8c133e4be7d69ec7edd1a39804db539a1940d64bc4d20ee38cddaacb8c798"
+  },
+  {
+    "candidate": "C17-local-ring",
+    "intent": "C08 topology with explicit 256-slice gather of the 16 strided local row partials; scalar-only cluster exchange and all weighted RMS semantics preserved.",
+    "source_sha256": "b1a741f046ec6ae618b1d3652537f98db4176a6b961da21e81dc30ff408d470a",
+    "status": "COMPILE_PASS",
+    "cycles": 23794,
+    "instructions": 43,
+    "schedule_sha256": "551907d7bd13961e7a1c19e96c53a00ee16e5043888ca3b9d110627a4696c90c"
+  },
+  {
+    "candidate": "C18-x-fused-broadcast",
+    "intent": "C15 with x loaded once per cluster then explicit F32 switch broadcast fused into both existing quantization passes; every actual x block initialized in first16 slices.",
+    "source_sha256": "04964f050b8baf9d3417cc7f33e7a3858c2ef9821f55e9c041f53b8e0b0a4a93",
+    "status": "COMPILE_PASS",
+    "cycles": 28164,
+    "instructions": 43,
+    "schedule_sha256": "618601f946ae85db2483b3f4314c1d5f2a131998c4aa5b6769c6004eec8e3a42"
+  },
+  {
+    "candidate": "C19-x-bf16-broadcast",
+    "intent": "C15 with x loaded once per cluster then one separate BF16 switch broadcast, overlappable with weight DMA; original quantization function retained.",
+    "source_sha256": "d8b98220cd33cddf73e669628beef2bd0cd6cad1f9b19583d0eaa92f6099bf64",
+    "status": "COMPILE_PASS",
+    "cycles": 22712,
+    "instructions": 45,
+    "schedule_sha256": "70a14cfa20f31406f0e37d0edc6e7a4b6766896d1ef98ba0750a1ba5a1400e29"
+  },
+  {
+    "candidate": "C20-x-fused-fixed",
+    "intent": "C18-x-fused-broadcast with fixed Broadcast1 16x16 topology instead of generic CustomBroadcast for x replication; identical initialized source slices and mathematical operations.",
+    "source_sha256": "7f1a9f2bd8020b69cd2ee1829b849fd92696a1dbb7dde50c0e73d01abebfaa9d",
+    "status": "COMPILE_FAIL",
+    "log_tail": "me-20260923-target/furiosa-opt/compile/debug/deps/libnum_traits-bda7def6915a0c8c.rmeta --extern rand=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/librand-ae59932330f9a1db.rmeta --extern safetensors=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libsafetensors-ebbd4036f8929a23.rmeta --extern serde=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libserde-2239c2dc1ad8730e.rmeta --extern serde_json=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libserde_json-5d54f4adcd78ca43.rmeta --extern tokio=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libtokio-58b0f4dc284e769b.rmeta --extern tracing=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libtracing-769111fcc359f640.rmeta '--cfg=backend=\"npu\"' -Zmir-opt-level=0 -Zalways-encode-mir -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/furiosa-mapping-8205a1c76e411625/out/furiosa-mapping-impl-target/x86_64-unknown-linux-gnu/release -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/furiosa-opt-lower-8739c1e7be789539/out/furiosa-opt-lower-impl-target/x86_64-unknown-linux-gnu/release -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/ring-78406d4772cbfa38/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/esaxx-rs-d020e994a95e1156/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/onig_sys-1e8635d374065ac0/out` (signal: 6, SIGABRT: process abort signal)\n"
+  },
+  {
+    "candidate": "C21-x-bf16-fixed",
+    "intent": "C19-x-bf16-broadcast with fixed Broadcast1 16x16 topology instead of generic CustomBroadcast for x replication; identical initialized source slices and mathematical operations.",
+    "source_sha256": "609ec32f3b34ace0beb76c41b55765fc48ea3bc8e184a0c625b3a4f9b2629662",
+    "status": "COMPILE_FAIL",
+    "log_tail": "me-20260923-target/furiosa-opt/compile/debug/deps/libnum_traits-bda7def6915a0c8c.rmeta --extern rand=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/librand-ae59932330f9a1db.rmeta --extern safetensors=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libsafetensors-ebbd4036f8929a23.rmeta --extern serde=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libserde-2239c2dc1ad8730e.rmeta --extern serde_json=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libserde_json-5d54f4adcd78ca43.rmeta --extern tokio=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libtokio-58b0f4dc284e769b.rmeta --extern tracing=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/deps/libtracing-769111fcc359f640.rmeta '--cfg=backend=\"npu\"' -Zmir-opt-level=0 -Zalways-encode-mir -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/furiosa-mapping-8205a1c76e411625/out/furiosa-mapping-impl-target/x86_64-unknown-linux-gnu/release -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/furiosa-opt-lower-8739c1e7be789539/out/furiosa-opt-lower-impl-target/x86_64-unknown-linux-gnu/release -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/ring-78406d4772cbfa38/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/esaxx-rs-d020e994a95e1156/out -L native=/tmp/furiosa-extreme-20260923-target/furiosa-opt/compile/debug/build/onig_sys-1e8635d374065ac0/out` (signal: 6, SIGABRT: process abort signal)\n"
+  },
+  {
+    "candidate": "C22-fixed-rms-ring16",
+    "intent": "C15 with fixed Broadcast1 slice1=16,slice0=1 for all-gather of sixteen scalar partials. Based on verified K1 Broadcast1 scalar-gather mechanism; identical reduction and scalar arithmetic.",
+    "source_sha256": "a4803e5982db94e082af9c9581226d1fda0c2451c4c5a969d0726e5302bad416",
+    "status": "COMPILE_PASS",
+    "cycles": 22317,
+    "instructions": 42,
+    "schedule_sha256": "90351a4254e74d5de09bf157ff4eb1d51ede48aeb918e572747ad9b34ee1ac59"
+  }
+]

@@ -1,0 +1,65 @@
+ M Cargo.toml
+ M OPTIMIZATION.md
+ M README.md
+ D runs.csv
+M  scripts/fixture_prng.py
+M  scripts/generate_references.py
+M  scripts/local_test.sh
+M  scripts/reference/gemma4.py
+M  scripts/rngd_test.sh
+ M scripts/submit_leader_loop.sh
+M  src/api/handlers.rs
+M  src/api/mod.rs
+M  src/api/schema.rs
+M  src/api/server.rs
+M  src/api/worker.rs
+M  src/axes.rs
+M  src/bin/gemma4.rs
+M  src/bin/server.rs
+A  src/bin/test_kernels.rs
+M  src/device/audio/mod.rs
+M  src/device/audio/projection.rs
+M  src/device/full/attention.rs
+M  src/device/full/mod.rs
+M  src/device/full/projection.rs
+M  src/device/full/rmsnorm.rs
+M  src/device/full/rope.rs
+ M src/device/layout.rs
+ M src/device/qkv/headnorm.rs
+ M src/device/qkv/pool.rs
+ M src/device/qkv/proj8.rs
+ M src/device/qkv/rope.rs
+ M src/device/qkv/xnorm8.rs
+ M src/device/shared/ffn7.rs
+M  src/device/shared/lm_head.rs
+MM src/device/shared/mlp.rs
+M  src/device/shared/residual.rs
+ M src/device/shared/rmsnorm.rs
+M  src/device/sliding/attention.rs
+ M src/device/sliding/output31.rs
+M  src/device/sliding/projection.rs
+ M src/device/sliding/qkv69382.rs
+ M src/device/sliding/qkv_head_local.rs
+M  src/device/sliding/rmsnorm.rs
+M  src/device/sliding/rope.rs
+M  src/device/vision/layernorm.rs
+M  src/device/vision/mod.rs
+M  src/device/vision/projection.rs
+M  src/host/audio.rs
+M  src/host/generate.rs
+M  src/host/image.rs
+M  src/host/load.rs
+M  src/host/mod.rs
+M  src/host/runtime.rs
+M  src/host/sampling.rs
+M  src/host/tokenizer.rs
+M  src/lib.rs
+ M src/ops.rs
+M  src/ops_audio.rs
+M  src/ops_vision.rs
+ D tests/test_kernels.rs
+?? EVALUATION.md
+?? research/
+?? scripts/MOA_SUBMIT_LOOP.md
+?? scripts/moa_submit_loop.py
+?? scripts/test_moa_submit_loop.py

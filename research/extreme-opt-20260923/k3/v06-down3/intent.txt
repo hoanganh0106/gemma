@@ -1,0 +1,1 @@
+Five3-row down tiles; tests memory/overlap tradeoff.

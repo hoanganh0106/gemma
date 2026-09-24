@@ -1,0 +1,1 @@
+Direct post-RMS and GeGLU VRF only; preserve baseline pre-RMS to avoid its measured79cycle scheduling regression. Arithmetic and BF16 boundaries unchanged.

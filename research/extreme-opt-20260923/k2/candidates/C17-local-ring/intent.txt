@@ -1,0 +1,1 @@
+C08 topology with explicit 256-slice gather of the 16 strided local row partials; scalar-only cluster exchange and all weighted RMS semantics preserved.

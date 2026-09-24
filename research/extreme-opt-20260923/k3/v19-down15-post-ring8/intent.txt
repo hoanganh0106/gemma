@@ -1,0 +1,1 @@
+Explicit ring8 only for the post-RMS reduction; keep pre-RMS baseline schedule to isolate critical-path effects. Same eight partials and scalar arithmetic, FP32 sum association can change. Parent v15-down15-post-geglu

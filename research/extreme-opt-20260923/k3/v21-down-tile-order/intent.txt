@@ -1,0 +1,1 @@
+P013 tests whether reordering the three independent five-row down tiles changes compiler scheduling/overlap. Disjoint output tiles preserve each output's arithmetic and all inputs. Based on P005.

@@ -1,0 +1,78 @@
+--- baseline/src/device/shared/ffn7.rs
++++ v20/src/device/shared/ffn7.rs
+@@ -344,7 +344,7 @@
+     gate: &DmTensor<f32, Chip, UpGateClusters, Groups, m![L % 120]>,
+     gate_factor: &VrfTensor<f32, Chip, UpGateClusters, Groups, m![1 # 8]>,
+ ) -> DmTensor<bf16, Chip, UpGateClusters, Groups, m![L % 120]> {
+-    let gelu: DmTensor<f32, Chip, UpGateClusters, Groups, m![L % 120]> = device
++    let gelu_vrf: VrfTensor<f32, Chip, UpGateClusters, Groups, m![L % 120]> = device
+         .sub
+         .begin(gate.view())
+         .fetch::<m![L / 8 % 15], m![L % 8]>()
+@@ -359,13 +359,6 @@
+         .vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul1), Stash)
+         .vector_widen_concat::<m![L / 8 % 15], m![L % 8]>()
+         .vector_final()
+-        .commit_trim::<m![L % 8]>()
+-        .commit();
+-    let gelu_vrf: VrfTensor<f32, Chip, UpGateClusters, Groups, m![L % 120]> = device
+-        .sub
+-        .begin(gelu.view())
+-        .fetch::<m![L / 8 % 15], m![L % 8]>()
+-        .collect::<m![L / 8 % 15], m![L % 8]>()
+         .to_vrf();
+     device.main
+         .begin(up.view())
+@@ -644,22 +637,32 @@
+         .vector_final()
+         .commit_trim::<m![1 # 8]>()
+         .commit();
+-    let rms: DmTensor<f32, Chip, Cluster, m![1 # 32, Dummy8], m![1 # 8]> = device
+-        .main
+-        .begin(mean_square.view())
++    // Explicitly gather the eight H-group partials in each physical ring.
++    // Every valid partial participates; only the cross-slice reduction implementation changes.
++    let mean: DmTensor<f32, Chip, Cluster, m![1 # 32, Dummy8], m![1 # 8]> = device
++        .main.begin(mean_square.view())
++        .fetch::<m![1], m![1 # 8]>()
++        .switch::<m![1 # 32, Dummy8], m![H / 480]>(SwitchConfig::Broadcast1 { slice1: 8, slice0: 1 })
++        .collect::<m![H / 480], m![1 # 8]>()
++        .vector_init().vector_intra_slice_tag(TagMode::Zero)
++        .vector_narrow_trim::<m![1 # 4]>()
++        .vector_intra_slice_reduce::<H, m![1], m![1 # 4]>(IntraSliceReduceOpF32::Add)
++        .vector_widen_pad::<m![1 # 8]>()
++        .vector_final().commit_trim::<m![1 # 8]>().commit();
++    let rms: VrfTensor<f32, Chip, Cluster, m![1 # 32, Dummy8], m![1 # 8]> = device
++        .main
++        .begin(mean.view())
+         .fetch::<m![1], m![1 # 8]>()
+         .collect::<m![1], m![1 # 8]>()
+         .vector_init()
+-        .vector_inter_slice_reduce::<m![1 # 32, Dummy8], m![1]>(InterSliceReduceOpF32::Add)
+         .vector_intra_slice_tag(TagMode::Zero)
+         .vector_narrow_trim::<m![1 # 4]>()
+         .vector_fp_binary(FpBinaryOp::AddF, EPS)
+         .vector_fp_unary(FpUnaryOp::Sqrt)
+         .vector_widen_pad::<m![1 # 8]>()
+         .vector_final()
+-        .commit_trim::<m![1 # 8]>()
+-        .commit();
+-    let rms: DmTensor<f32, Chip, Cluster, ReducingSlices, m![1 # 8]> = unsafe { rms.reshape() };
++        .to_vrf(&mut device.sub);
++    let rms_vrf: VrfTensor<f32, Chip, Cluster, ReducingSlices, m![1 # 8]> = unsafe { rms.reshape() };
+ 
+     let weight_dm: DmTensor<bf16, Chip, Cluster, ReducingSlices, m![H % 480]> = rms_weight.to_dm(&mut device.tdma);
+     let weight_vrf: VrfTensor<f32, Chip, Cluster, ReducingSlices, m![H % 480]> = device
+@@ -668,12 +671,6 @@
+         .fetch::<m![H / 16 % 30], m![H % 16]>()
+         .fetch_cast::<f32>()
+         .collect::<m![H / 8 % 60], m![H % 8]>()
+-        .to_vrf();
+-    let rms_vrf: VrfTensor<f32, Chip, Cluster, ReducingSlices, m![1 # 8]> = device
+-        .sub
+-        .begin(rms.view())
+-        .fetch::<m![1], m![1 # 8]>()
+-        .collect::<m![1], m![1 # 8]>()
+         .to_vrf();
+     let residual_vrf: VrfTensor<f32, Chip, Cluster, ReducingSlices, m![H % 480]> = device
+         .sub

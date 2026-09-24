@@ -1,0 +1,1 @@
+Up/gate packed tensors loaded into separate slices of an extra local matrix axis, then one LUT/contraction pass. Both matrix weights/scales preserved and same accumulation order per output. Saves one decode setup, increases packed live allocation, delays first contraction until both matrices loaded.

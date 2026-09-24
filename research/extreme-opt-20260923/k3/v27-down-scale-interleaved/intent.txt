@@ -1,0 +1,1 @@
+P019 maps the eight contraction lanes as Interleaved rather than Sequential only in the down scale pass. It retains every product and the FP32 accumulator but changes lane-fold placement/association. Compile and public correctness are required before considering it.
