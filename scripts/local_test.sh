@@ -4,6 +4,7 @@ set -euo pipefail
 CRATE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$CRATE"
 
+PYTHON="${PYTHON:-python3}"
 FIXTURE="ref/fixtures.safetensors"
 
 for argument in "$@"; do
@@ -15,9 +16,9 @@ done
 
 if [ ! -f "$FIXTURE" ]; then
     echo "local_test.sh: $FIXTURE is missing -- generate it first:" >&2
-    echo "    python3 scripts/generate_references.py" >&2
+    echo "    $PYTHON scripts/generate_references.py" >&2
     exit 1
 fi
 
 echo "==> running test_kernels"
-TUC_PROFILE_LEVEL="${TUC_PROFILE_LEVEL:-info}" cargo furiosa-opt test --release --test test_kernels
+FURIOSA_OPT_PROFILE="${FURIOSA_OPT_PROFILE:-info}" cargo furiosa-opt run --release --bin test_kernels

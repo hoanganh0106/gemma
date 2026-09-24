@@ -1,0 +1,30 @@
+{
+  "log": "research\\extreme-opt-20260923\\packages\\P005-fixed-rings\\arena-79166.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    86065,
+    40072,
+    216647
+  ],
+  "samples": [
+    [
+      90029,
+      86065,
+      86055
+    ],
+    [
+      40358,
+      39481,
+      40072
+    ],
+    [
+      218305,
+      216647,
+      216634
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 7.949883003382813
+}
