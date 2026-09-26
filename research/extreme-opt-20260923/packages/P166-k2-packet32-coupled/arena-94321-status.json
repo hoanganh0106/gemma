@@ -1,0 +1,13 @@
+{
+  "id": 94321,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p155-p121-dm-view-clean-20260925",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-25T10:46:10Z",
+  "started_at": "2026-09-25T10:46:10Z",
+  "finished_at": "2026-09-25T10:46:16Z",
+  "duration_sec": 6.678952698,
+  "exit_code": 0,
+  "device_id": null
+}
