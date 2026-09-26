@@ -1,0 +1,13 @@
+{
+  "id": 84010,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P053-native-scale-hw-20260923-a1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T03:06:37Z",
+  "started_at": "2026-09-24T03:06:57Z",
+  "finished_at": "2026-09-24T03:07:04Z",
+  "duration_sec": 6.64795261,
+  "exit_code": 0,
+  "device_id": null
+}

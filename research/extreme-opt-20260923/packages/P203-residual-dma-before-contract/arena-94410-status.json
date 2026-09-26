@@ -1,0 +1,13 @@
+{
+  "id": 94410,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p158-p109-weight-order-clean-20260925",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-25T11:02:44Z",
+  "started_at": "2026-09-25T11:02:44Z",
+  "finished_at": "2026-09-25T11:02:51Z",
+  "duration_sec": 6.675753466,
+  "exit_code": 0,
+  "device_id": null
+}

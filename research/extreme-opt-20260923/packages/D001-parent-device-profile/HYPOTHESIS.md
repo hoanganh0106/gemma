@@ -1,0 +1,1 @@
+Diagnostic only. Device sources, test inputs, references and output comparisons are unchanged from canonical parent. Host collector logs span name/cluster/begin/end; runtime profiling level is trace. Trace instrumentation can change timings, so these cycles must never enter official performance comparisons. Purpose: identify resource costs hidden by the static model.

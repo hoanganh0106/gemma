@@ -1,0 +1,12 @@
+{
+  "package": "P054-k1-cancel-input-scale-on-p053",
+  "label": "P054-scale-cancel-r1",
+  "diagnostic": false,
+  "binary_sha256": "a9c0627984dea8202537612e940871ac1eb9bed68fa28a004f7017ee6e472944",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 83971 (P054-scale-cancel-r1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 83971
+}

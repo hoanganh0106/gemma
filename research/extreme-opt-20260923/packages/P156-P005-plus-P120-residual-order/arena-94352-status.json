@@ -1,0 +1,13 @@
+{
+  "id": 94352,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p156-p120-residual-clean-20260925",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-25T10:51:30Z",
+  "started_at": "2026-09-25T10:52:36Z",
+  "finished_at": "2026-09-25T10:52:43Z",
+  "duration_sec": 6.568744649,
+  "exit_code": 0,
+  "device_id": null
+}

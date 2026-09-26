@@ -1,0 +1,1113 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.5
+   Compiling serde_core v1.0.229
+   Compiling parking_lot_core v0.9.12
+   Compiling memchr v2.8.3
+   Compiling serde v1.0.229
+   Compiling smallvec v1.16.1
+   Compiling itoa v1.0.18
+   Compiling scopeguard v1.2.0
+   Compiling version_check v0.9.5
+   Compiling rustversion v1.0.23
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.13
+   Compiling lock_api v0.4.14
+   Compiling once_cell v1.21.4
+   Compiling cc v1.4.7
+   Compiling hashbrown v0.17.1
+   Compiling equivalent v1.0.2
+   Compiling crossbeam-utils v0.8.23
+   Compiling pin-project-lite v0.2.17
+   Compiling zerocopy v0.8.57
+   Compiling bytes v1.12.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling getrandom v0.3.4
+   Compiling futures-core v0.3.34
+   Compiling zmij v1.0.23
+   Compiling generic-array v0.14.7
+   Compiling indexmap v2.14.2
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling serde_json v1.0.151
+   Compiling autocfg v1.5.1
+   Compiling futures-sink v0.3.34
+   Compiling typenum v1.20.1
+   Compiling thiserror v2.0.20
+   Compiling bitflags v2.13.2
+   Compiling ahash v0.8.12
+   Compiling parking_lot v0.12.5
+   Compiling errno v0.3.14
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.3
+   Compiling aho-corasick v1.1.5
+   Compiling signal-hook-registry v1.4.8
+   Compiling regex-syntax v0.8.11
+   Compiling slab v0.4.12
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling futures-channel v0.3.34
+   Compiling siphasher v1.0.3
+   Compiling litemap v0.8.3
+   Compiling either v1.18.0
+   Compiling writeable v0.6.4
+   Compiling libm v0.2.16
+   Compiling phf_shared v0.11.3
+   Compiling digest v0.10.7
+   Compiling regex-automata v0.4.18
+   Compiling num-traits v0.2.19
+   Compiling ring v0.17.14
+   Compiling synstructure v0.14.0
+   Compiling http v1.5.0
+   Compiling utf8_iter v1.0.4
+   Compiling syn v1.0.109
+   Compiling icu_properties_data v2.3.0
+   Compiling term v1.2.1
+   Compiling futures-io v0.3.34
+   Compiling keccak v0.1.6
+   Compiling bit-vec v0.8.0
+   Compiling zerocopy-derive v0.8.57
+   Compiling paste v1.0.15
+   Compiling log v0.4.34
+   Compiling crossbeam-epoch v0.9.21
+   Compiling futures-task v0.3.34
+   Compiling fixedbitset v0.5.7
+   Compiling icu_normalizer_data v2.3.0
+   Compiling precomputed-hash v0.1.1
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.3
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling tokio-macros v2.7.2
+   Compiling thiserror-impl v2.0.20
+   Compiling futures-macro v0.3.34
+   Compiling same-file v1.0.6
+   Compiling tokio v1.53.1
+   Compiling new_debug_unreachable v1.0.6
+   Compiling walkdir v2.5.0
+   Compiling string_cache v0.8.9
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling petgraph v0.7.1
+   Compiling lalrpop-util v0.22.2
+   Compiling regex v1.13.1
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling futures-util v0.3.34
+   Compiling itertools v0.14.0
+   Compiling ena v0.14.4
+   Compiling bit-set v0.8.0
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling sha3 v0.10.9
+   Compiling icu_locale_core v2.3.0
+   Compiling icu_collections v2.3.0
+   Compiling tracing-attributes v0.1.31
+   Compiling ascii-canvas v4.0.0
+   Compiling tracing-core v0.1.36
+   Compiling percent-encoding v2.3.2
+   Compiling icu_provider v2.3.1
+   Compiling core_extensions v1.5.4
+   Compiling allocator-api2 v0.2.21
+   Compiling zeroize v1.9.0
+   Compiling pico-args v0.5.0
+   Compiling unicode-xid v0.2.6
+   Compiling crossbeam-deque v0.8.8
+   Compiling rustls-pki-types v1.15.1
+   Compiling lalrpop v0.22.2
+   Compiling tracing v0.1.44
+   Compiling hashbrown v0.14.5
+   Compiling http-body v1.1.0
+   Compiling getrandom v0.2.17
+   Compiling fnv v1.0.7
+   Compiling untrusted v0.9.0
+   Compiling core_extensions_proc_macros v1.5.4
+   Compiling ident_case v1.0.1
+   Compiling strsim v0.11.1
+   Compiling rayon-core v1.13.0
+   Compiling tstr_proc_macros v0.2.2
+   Compiling httparse v1.10.1
+   Compiling tokio-util v0.7.19
+   Compiling dashmap v6.2.1
+   Compiling darling_core v0.20.11
+   Compiling tstr v0.2.4
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling abi_stable_shared v0.11.0
+   Compiling serde-lite-derive v0.5.1
+   Compiling utf8parse v0.2.2
+   Compiling rustls v0.23.45
+   Compiling atomic-waker v1.1.2
+   Compiling try-lock v0.2.5
+   Compiling typewit v1.15.2
+   Compiling as_derive_utils v0.11.0
+   Compiling tower-service v0.3.3
+   Compiling typed-arena v2.0.2
+   Compiling const_panic v0.2.17
+   Compiling h2 v0.4.19
+   Compiling idna_adapter v1.2.2
+   Compiling serde-lite v0.5.1
+   Compiling want v0.3.1
+   Compiling anstyle-parse v1.0.0
+   Compiling repr_offset v0.2.2
+   Compiling darling_macro v0.20.11
+   Compiling ppv-lite86 v0.2.21
+   Compiling form_urlencoded v1.2.2
+   Compiling furiosa-opt-macro v0.8.1
+   Compiling rand_core v0.9.5
+   Compiling abi_stable_derive v0.11.3
+   Compiling crossbeam-channel v0.5.17
+   Compiling libloading v0.7.4
+   Compiling generational-arena v0.2.9
+   Compiling colorchoice v1.0.5
+   Compiling pkg-config v0.3.34
+   Compiling ryu v1.0.23
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling subtle v2.6.1
+   Compiling virtue v0.0.18
+   Compiling base64 v0.22.1
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling portable-atomic v1.15.0
+   Compiling simd-adler32 v0.3.10
+   Compiling anstream v1.0.0
+   Compiling onig_sys v69.9.3
+   Compiling darling v0.20.11
+   Compiling rand_chacha v0.9.0
+   Compiling bincode_derive v2.0.1
+   Compiling rayon v1.12.0
+   Compiling idna v1.1.0
+   Compiling hyper v1.11.1
+   Compiling lasso v0.7.3
+   Compiling multiversion-macros v0.9.0
+   Compiling encoding_rs v0.8.41
+   Compiling sync_wrapper v1.0.2
+   Compiling crc32fast v1.5.2
+   Compiling rustix v1.1.5
+   Compiling cfg_aliases v0.2.2
+   Compiling unicode-width v0.2.2
+   Compiling unty v0.0.4
+   Compiling ipnet v2.12.2
+   Compiling tower-layer v0.3.3
+   Compiling adler2 v2.0.1
+   Compiling hyper-util v0.1.20
+   Compiling tower v0.5.3
+   Compiling console v0.16.6
+   Compiling bincode v2.0.1
+   Compiling nix v0.29.0
+   Compiling multiversion v0.9.0
+   Compiling furiosa-mapping-macro v0.8.1
+   Compiling url v2.5.8
+   Compiling abi_stable v0.11.3
+   Compiling rand v0.9.5
+   Compiling derive_builder_core v0.20.2
+   Compiling webpki-roots v1.0.9
+   Compiling matrixmultiply v0.3.11
+   Compiling esaxx-rs v0.1.10
+   Compiling jiff-core v0.1.1
+   Compiling io-uring v0.6.4
+   Compiling clap_lex v1.1.1
+   Compiling linux-raw-sys v0.12.1
+   Compiling multiversion_no_op v1.0.0
+   Compiling anyhow v1.0.104
+   Compiling furiosa-mapping v0.8.1
+   Compiling core_detect v1.0.0
+   Compiling minimal-lexical v0.2.1
+   Compiling option-ext v0.2.0
+   Compiling bytemuck v1.25.2
+   Compiling getrandom v0.4.3
+   Compiling unit-prefix v0.5.2
+   Compiling simdutf8 v0.1.5
+   Compiling heck v0.5.0
+   Compiling clap_builder v4.6.7
+   Compiling clap_derive v4.6.7
+   Compiling indicatif v0.18.6
+   Compiling nom v7.1.3
+   Compiling dirs-sys v0.5.0
+   Compiling jiff v0.2.37
+   Compiling derive_builder_macro v0.20.2
+   Compiling tower-http v0.6.11
+   Compiling furiosa-opt-abi v0.8.1
+   Compiling rustls-webpki v0.103.15
+   Compiling miniz_oxide v0.9.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling env_filter v2.0.0
+   Compiling http-body-util v0.1.5
+   Compiling futures-executor v0.3.34
+   Compiling arrayvec v0.7.8
+   Compiling monostate-impl v0.1.18
+   Compiling blake3 v1.8.7
+   Compiling castaway v0.2.4
+   Compiling base64 v0.13.1
+   Compiling rawpointer v0.2.1
+   Compiling furiosa-opt-lower v0.8.1
+   Compiling static_assertions v1.1.0
+   Compiling memo-map v0.3.4
+   Compiling pastey v0.2.3
+   Compiling bitflags v1.3.2
+   Compiling furiosa-opt-rt v0.8.1
+   Compiling unicode-segmentation v1.13.3
+   Compiling macro_rules_attribute-proc_macro v0.2.3
+   Compiling mime v0.3.17
+   Compiling furiosa-mapping-types v0.8.1
+   Compiling spm_precompiled v0.1.4
+   Compiling monostate v0.1.18
+   Compiling macro_rules_attribute v0.2.3
+   Compiling minijinja v2.24.0
+   Compiling compact_str v0.9.1
+   Compiling futures v0.3.34
+   Compiling furiosa-opt-lower-types v0.8.1
+   Compiling env_logger v0.11.11
+   Compiling flate2 v1.1.10
+   Compiling tokio-rustls v0.26.5
+   Compiling furiosa-opt-ipc v0.8.1
+   Compiling hyper-rustls v0.27.9
+   Compiling dma-heap v0.4.1
+   Compiling clap v4.6.7
+   Compiling derive_builder v0.20.2
+   Compiling dirs v6.0.0
+   Compiling fancy-regex v0.17.0
+   Compiling rayon-cond v0.4.0
+   Compiling miniz_oxide v0.8.9
+   Compiling reqwest v0.12.28
+   Compiling fdeflate v0.3.7
+   Compiling approx v0.4.0
+   Compiling num-integer v0.1.47
+   Compiling num-complex v0.4.6
+   Compiling dary_heap v0.3.9
+   Compiling bstr v1.13.1
+   Compiling num_cpus v1.17.0
+   Compiling memmap2 v0.9.11
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling daachorse v3.0.3
+   Compiling pxfm v0.1.30
+   Compiling lazy_static v1.5.0
+   Compiling unicode_categories v0.1.1
+   Compiling constant_time_eq v0.4.2
+   Compiling zune-core v0.5.3
+   Compiling cpufeatures v0.3.1
+   Compiling rustc-hash v2.1.3
+   Compiling zune-jpeg v0.5.15
+   Compiling tiktoken-rs v0.12.0
+   Compiling ndarray v0.15.6
+   Compiling minijinja-contrib v2.24.0
+   Compiling hf-hub v0.5.0
+   Compiling moxcms v0.8.1
+   Compiling png v0.18.1
+   Compiling uuid v1.26.1
+   Compiling furiosa-opt-common-ir v0.8.1
+   Compiling half v2.7.1
+   Compiling safetensors v0.4.5
+   Compiling onig v6.5.3
+   Compiling bincode v1.3.3
+   Compiling smart-default v0.7.1
+   Compiling base64 v0.23.1
+   Compiling tokenizers v0.23.2
+   Compiling byteorder-lite v0.1.0
+   Compiling furiosa-opt-std v0.8.1
+   Compiling image v0.25.10
+   Compiling llm-tokenizer v1.7.0
+   Compiling furiosa-opt-gemma4 v0.1.0 (/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P100-k2-tail120-weight-fetch32)
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: type alias `QueryClusters` is never used
+  --> src/device/layout.rs:20:17
+   |
+20 | pub(crate) type QueryClusters = m![Qs / 2048];
+   |                 ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: type alias `KeyValueClusters` is never used
+  --> src/device/layout.rs:21:17
+   |
+21 | pub(crate) type KeyValueClusters = m![Ps / 1024];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: type alias `QkvColumns` is never used
+  --> src/device/layout.rs:25:17
+   |
+25 | pub(crate) type QkvColumns = m![Qs / 32 % 64, H / 960];
+   |                 ^^^^^^^^^^
+
+warning: function `broadcast_qkv_hidden` is never used
+  --> src/device/layout.rs:29:15
+   |
+29 | pub(crate) fn broadcast_qkv_hidden<Cluster: M>(
+   |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `KvColumns` is never used
+  --> src/device/layout.rs:43:17
+   |
+43 | pub(crate) type KvColumns = m![Ps / 16 % 64, H / 960];
+   |                 ^^^^^^^^^
+
+warning: type alias `QueryRowsReduced` is never used
+  --> src/device/layout.rs:45:17
+   |
+45 | pub(crate) type QueryRowsReduced = m![Qs / 32 % 64, 1 # 4];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: type alias `KeyValueRowsReduced` is never used
+  --> src/device/layout.rs:47:17
+   |
+47 | pub(crate) type KeyValueRowsReduced = m![Ps / 16 % 64, 1 # 4];
+   |                 ^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `QueryRowSlices` is never used
+  --> src/device/qkv/mod.rs:24:17
+   |
+24 | pub(crate) type QueryRowSlices = m![Ns % 4, Gs, Ds / 64, Ds % 8];
+   |                 ^^^^^^^^^^^^^^
+
+warning: type alias `KeyValueRowSlices` is never used
+  --> src/device/qkv/mod.rs:27:17
+   |
+27 | pub(crate) type KeyValueRowSlices = m![Ns % 4, Ds / 32, Ds % 4, Ds / 4 % 2];
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: type alias `HeadClusters` is never used
+  --> src/device/qkv/mod.rs:31:17
+   |
+31 | pub(crate) type HeadClusters = m![Ns / 4];
+   |                 ^^^^^^^^^^^^
+
+warning: type alias `HeadSlices` is never used
+  --> src/device/qkv/mod.rs:33:17
+   |
+33 | pub(crate) type HeadSlices = m![Ns % 4, 1 # 64];
+   |                 ^^^^^^^^^^
+
+warning: type alias `QueryRowsByHead` is never used
+  --> src/device/qkv/mod.rs:35:17
+   |
+35 | pub(crate) type QueryRowsByHead = m![Ns % 4, Gs, Ds / 8];
+   |                 ^^^^^^^^^^^^^^^
+
+warning: type alias `KvRowsByHead` is never used
+  --> src/device/qkv/mod.rs:37:17
+   |
+37 | pub(crate) type KvRowsByHead = m![Ns % 4, Ds / 4];
+   |                 ^^^^^^^^^^^^
+
+warning: type alias `Everywhere` is never used
+  --> src/device/qkv/mod.rs:39:17
+   |
+39 | pub(crate) type Everywhere = m![Rep16, Ring16];
+   |                 ^^^^^^^^^^
+
+warning: type alias `HeadCopyClusters` is never used
+  --> src/device/qkv/mod.rs:41:17
+   |
+41 | pub(crate) type HeadCopyClusters = m![Dummy2];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: type alias `HeadCopySlices` is never used
+  --> src/device/qkv/mod.rs:42:17
+   |
+42 | pub(crate) type HeadCopySlices = m![HeadCopy4, 1 # 64];
+   |                 ^^^^^^^^^^^^^^
+
+warning: constant `X_PRESCALE` is never used
+  --> src/device/qkv/mod.rs:48:18
+   |
+48 | pub(crate) const X_PRESCALE: f32 = 8.0;
+   |                  ^^^^^^^^^^
+
+warning: type alias `Cluster` is never used
+ --> src/device/qkv/headnorm.rs:8:6
+  |
+8 | type Cluster = HeadCopyClusters;
+  |      ^^^^^^^
+
+warning: type alias `Slice` is never used
+ --> src/device/qkv/headnorm.rs:9:6
+  |
+9 | type Slice = HeadCopySlices;
+  |      ^^^^^
+
+warning: constant `DS_F32` is never used
+  --> src/device/qkv/headnorm.rs:11:7
+   |
+11 | const DS_F32: f32 = Ds::SIZE as f32;
+   |       ^^^^^^
+
+warning: function `normalize_query` is never used
+  --> src/device/qkv/headnorm.rs:17:15
+   |
+17 | pub(crate) fn normalize_query(
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `root_mean_square` is never used
+  --> src/device/qkv/headnorm.rs:80:4
+   |
+80 | fn root_mean_square(
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `normalize_key` is never used
+   --> src/device/qkv/headnorm.rs:125:15
+    |
+125 | pub(crate) fn normalize_key(
+    |               ^^^^^^^^^^^^^
+
+warning: function `root_mean_square_tile` is never used
+   --> src/device/qkv/headnorm.rs:149:4
+    |
+149 | fn root_mean_square_tile(device: &mut Device, x: super::pool::Tile<'_>) -> VrfTensor<f32, Chip, Cluster, Slice,...
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/qkv/headnorm.rs:190:15
+    |
+190 | pub(crate) fn normalize_value(
+    |               ^^^^^^^^^^^^^^^
+
+warning: type alias `SmallPool` is never used
+  --> src/device/qkv/pool.rs:12:17
+   |
+12 | pub(crate) type SmallPool = DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Pool, Ds]>;
+   |                 ^^^^^^^^^
+
+warning: type alias `Vrf1` is never used
+  --> src/device/qkv/pool.rs:13:17
+   |
+13 | pub(crate) type Vrf1 = VrfTensor<f32, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>;
+   |                 ^^^^
+
+warning: type alias `Vrf2` is never used
+  --> src/device/qkv/pool.rs:14:17
+   |
+14 | pub(crate) type Vrf2 = VrfTensor<f32, Chip, HeadCopyClusters, HeadCopySlices, m![Pool = 2, Ds]>;
+   |                 ^^^^
+
+warning: constant `V_SCALE` is never used
+  --> src/device/qkv/pool.rs:16:18
+   |
+16 | pub(crate) const V_SCALE: usize = 0;
+   |                  ^^^^^^^
+
+warning: constant `K_SCALE` is never used
+  --> src/device/qkv/pool.rs:17:18
+   |
+17 | pub(crate) const K_SCALE: usize = 1;
+   |                  ^^^^^^^
+
+warning: constant `K_NORM` is never used
+  --> src/device/qkv/pool.rs:18:18
+   |
+18 | pub(crate) const K_NORM: usize = 2;
+   |                  ^^^^^^
+
+warning: constant `Q_NORM` is never used
+  --> src/device/qkv/pool.rs:19:18
+   |
+19 | pub(crate) const Q_NORM: usize = 3;
+   |                  ^^^^^^
+
+warning: constant `Q_SCALE` is never used
+  --> src/device/qkv/pool.rs:20:18
+   |
+20 | pub(crate) const Q_SCALE: usize = 4;
+   |                  ^^^^^^^
+
+warning: constant `K_HEAD` is never used
+  --> src/device/qkv/pool.rs:22:18
+   |
+22 | pub(crate) const K_HEAD: usize = 6;
+   |                  ^^^^^^
+
+warning: constant `ROPE` is never used
+  --> src/device/qkv/pool.rs:24:18
+   |
+24 | pub(crate) const ROPE: usize = 8;
+   |                  ^^^^
+
+warning: function `load_per_head` is never used
+  --> src/device/qkv/pool.rs:26:4
+   |
+26 | fn load_per_head(device: &mut Device, pool: &mut SmallPool, scale: &HbmTensor<bf16, Chip, m![Ps]>, index: usize) {
+   |    ^^^^^^^^^^^^^
+
+warning: function `load_shared` is never used
+  --> src/device/qkv/pool.rs:32:4
+   |
+32 | fn load_shared(device: &mut Device, pool: &mut SmallPool, weight: &HbmTensor<bf16, Chip, m![Ds]>, index: usize) {
+   |    ^^^^^^^^^^^
+
+warning: function `load` is never used
+  --> src/device/qkv/pool.rs:39:15
+   |
+39 | pub(crate) fn load(
+   |               ^^^^
+
+warning: function `load_rope` is never used
+  --> src/device/qkv/pool.rs:64:15
+   |
+64 | pub(crate) fn load_rope(device: &mut Device, pool: &mut SmallPool, rope_rows: &HbmTensor<bf16, Chip, m![RopeTabl...
+   |               ^^^^^^^^^
+
+warning: type alias `Tile` is never used
+  --> src/device/qkv/pool.rs:70:17
+   |
+70 | pub(crate) type Tile<'l> = DmTensorView<'l, bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Pool = 1 # 10, Ds]>;
+   |                 ^^^^
+
+warning: function `tile` is never used
+  --> src/device/qkv/pool.rs:72:15
+   |
+72 | pub(crate) fn tile(pool: &SmallPool, index: usize) -> Tile<'_> {
+   |               ^^^^
+
+warning: function `vrf1` is never used
+  --> src/device/qkv/pool.rs:76:15
+   |
+76 | pub(crate) fn vrf1(device: &mut Device, pool: &SmallPool, index: usize) -> Vrf1 {
+   |               ^^^^
+
+warning: function `vrf2` is never used
+  --> src/device/qkv/pool.rs:85:15
+   |
+85 | pub(crate) fn vrf2(device: &mut Device, pool: &SmallPool, index: usize) -> Vrf2 {
+   |               ^^^^
+
+warning: type alias `QueryClusters` is never used
+  --> src/device/qkv/proj8.rs:13:6
+   |
+13 | type QueryClusters = HeadClusters;
+   |      ^^^^^^^^^^^^^
+
+warning: type alias `KeyValueClusters` is never used
+  --> src/device/qkv/proj8.rs:14:6
+   |
+14 | type KeyValueClusters = HeadClusters;
+   |      ^^^^^^^^^^^^^^^^
+
+warning: function `project_query` is never used
+  --> src/device/qkv/proj8.rs:17:15
+   |
+17 | pub(crate) fn project_query(
+   |               ^^^^^^^^^^^^^
+
+warning: type alias `KvPad` is never used
+  --> src/device/qkv/proj8.rs:61:6
+   |
+61 | type KvPad = DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Kv, Ds / 8 % 4, H]>;
+   |      ^^^^^
+
+warning: type alias `KvTile` is never used
+  --> src/device/qkv/proj8.rs:62:6
+   |
+62 | type KvTile<'l> = DmTensorView<'l, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Kv = 1 # 2, Ds / 8 % 4,...
+   |      ^^^^^^
+
+warning: function `contract_kv_matrix` is never used
+  --> src/device/qkv/proj8.rs:64:4
+   |
+64 | fn contract_kv_matrix(
+   |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `project_value_matrix` is never used
+  --> src/device/qkv/proj8.rs:83:4
+   |
+83 | fn project_value_matrix(
+   |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_matrix` is never used
+   --> src/device/qkv/proj8.rs:111:4
+    |
+111 | fn project_key_matrix(
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_value` is never used
+   --> src/device/qkv/proj8.rs:140:15
+    |
+140 | pub(crate) fn project_key_value(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: type alias `QueryOperand` is never used
+   --> src/device/qkv/proj8.rs:159:6
+    |
+159 | type QueryOperand = TrfTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term], m![H]>;
+    |      ^^^^^^^^^^^^
+
+warning: type alias `KvOperand` is never used
+   --> src/device/qkv/proj8.rs:160:6
+    |
+160 | type KvOperand = TrfTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Term], m![H]>;
+    |      ^^^^^^^^^
+
+warning: function `query_operand` is never used
+   --> src/device/qkv/proj8.rs:162:4
+    |
+162 | fn query_operand(
+    |    ^^^^^^^^^^^^^
+
+warning: function `key_value_operand` is never used
+   --> src/device/qkv/proj8.rs:173:4
+    |
+173 | fn key_value_operand(
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `contract_query` is never used
+   --> src/device/qkv/proj8.rs:186:4
+    |
+186 | fn contract_query(
+    |    ^^^^^^^^^^^^^^
+
+warning: function `contract_key_value` is never used
+   --> src/device/qkv/proj8.rs:226:4
+    |
+226 | fn contract_key_value(
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: type alias `Cluster` is never used
+ --> src/device/qkv/rope.rs:7:6
+  |
+7 | type Cluster = HeadCopyClusters;
+  |      ^^^^^^^
+
+warning: type alias `Slice` is never used
+ --> src/device/qkv/rope.rs:8:6
+  |
+8 | type Slice = HeadCopySlices;
+  |      ^^^^^
+
+warning: type alias `RopeRows` is never used
+  --> src/device/qkv/rope.rs:12:17
+   |
+12 | pub(crate) type RopeRows = DmTensor<bf16, Chip, Cluster, Slice, m![RopeTable, Ds]>;
+   |                 ^^^^^^^^
+
+warning: function `load_tables` is never used
+  --> src/device/qkv/rope.rs:21:15
+   |
+21 | pub(crate) fn load_tables(
+   |               ^^^^^^^^^^^
+
+warning: function `apply_rope` is never used
+  --> src/device/qkv/rope.rs:51:15
+   |
+51 | pub(crate) fn apply_rope(
+   |               ^^^^^^^^^^
+
+warning: constant `H_F32` is never used
+  --> src/device/qkv/xnorm8.rs:14:7
+   |
+14 | const H_F32: f32 = H::SIZE as f32;
+   |       ^^^^^
+
+warning: function `normalize_everywhere_f8` is never used
+  --> src/device/qkv/xnorm8.rs:16:15
+   |
+16 | pub(crate) fn normalize_everywhere_f8<Cluster: M>(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `XTerms` is never used
+   --> src/device/qkv/xnorm8.rs:148:17
+    |
+148 | pub(crate) type XTerms<Cluster> = DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![Term, H]>;
+    |                 ^^^^^^
+
+warning: function `gather_f8` is never used
+   --> src/device/qkv/xnorm8.rs:153:4
+    |
+153 | fn gather_f8<Cluster: M>(
+    |    ^^^^^^^^^
+
+warning: constant `INVSQRT2` is never used
+ --> src/device/shared/mlp.rs:7:7
+  |
+7 | const INVSQRT2: f32 = 0.70710678118f32;
+  |       ^^^^^^^^
+
+warning: type alias `UpGateRows` is never used
+ --> src/device/shared/mlp.rs:9:17
+  |
+9 | pub(crate) type UpGateRows = m![L / 60];
+  |                 ^^^^^^^^^^
+
+warning: type alias `UpGateRowsPaired` is never used
+  --> src/device/shared/mlp.rs:10:17
+   |
+10 | pub(crate) type UpGateRowsPaired = m![L / 120, 1 # 2];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: function `project_up_and_gate` is never used
+  --> src/device/shared/mlp.rs:13:15
+   |
+13 | pub(crate) fn project_up_and_gate(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `feedforward` is never used
+   --> src/device/shared/mlp.rs:159:15
+    |
+159 | pub(crate) fn feedforward(
+    |               ^^^^^^^^^^^
+
+warning: function `geglu` is never used
+   --> src/device/shared/mlp.rs:219:15
+    |
+219 | pub(crate) fn geglu(
+    |               ^^^^^
+
+warning: type alias `DownRows` is never used
+   --> src/device/shared/mlp.rs:338:17
+    |
+338 | pub(crate) type DownRows = m![H / 120, 1 # 8];
+    |                 ^^^^^^^^
+
+warning: type alias `DownRowsByColumns` is never used
+   --> src/device/shared/mlp.rs:339:17
+    |
+339 | pub(crate) type DownRowsByColumns = m![H / 120, L / 1920];
+    |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `project_down` is never used
+   --> src/device/shared/mlp.rs:341:15
+    |
+341 | pub(crate) fn project_down(
+    |               ^^^^^^^^^^^^
+
+warning: function `scale_by_layer_gate` is never used
+  --> src/device/shared/residual.rs:46:15
+   |
+46 | pub(crate) fn scale_by_layer_gate(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_spread` is never used
+   --> src/device/shared/rmsnorm.rs:124:15
+    |
+124 | pub(crate) fn normalize_spread<Cluster: M, Slice: M>(
+    |               ^^^^^^^^^^^^^^^^
+
+warning: function `normalize_columns` is never used
+   --> src/device/shared/rmsnorm.rs:142:15
+    |
+142 | pub(crate) fn normalize_columns<Cluster: M, Slice: M>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: type alias `QkvDualQueryCluster` is never used
+ --> src/device/sliding/qkv_head_local.rs:7:6
+  |
+7 | type QkvDualQueryCluster = m![Qs / 2048 % 2];
+  |      ^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `HeadCluster` is never used
+  --> src/device/sliding/qkv_head_local.rs:10:17
+   |
+10 | pub(crate) type HeadCluster = m![Ns / 4];
+   |                 ^^^^^^^^^^^
+
+warning: type alias `QueryHeads` is never used
+  --> src/device/sliding/qkv_head_local.rs:11:17
+   |
+11 | pub(crate) type QueryHeads = m![Ns % 4, Gs, 1 # 32];
+   |                 ^^^^^^^^^^
+
+warning: type alias `KvHeads` is never used
+  --> src/device/sliding/qkv_head_local.rs:12:17
+   |
+12 | pub(crate) type KvHeads = m![Ns % 4, 1 # 64];
+   |                 ^^^^^^^
+
+warning: type alias `QueryHeadTensor` is never used
+  --> src/device/sliding/qkv_head_local.rs:13:17
+   |
+13 | pub(crate) type QueryHeadTensor = DmTensor<bf16, Chip, HeadCluster, QueryHeads, m![Ds]>;
+   |                 ^^^^^^^^^^^^^^^
+
+warning: type alias `KvHeadTensor` is never used
+  --> src/device/sliding/qkv_head_local.rs:14:17
+   |
+14 | pub(crate) type KvHeadTensor = DmTensor<bf16, Chip, HeadCluster, KvHeads, m![Ds]>;
+   |                 ^^^^^^^^^^^^
+
+warning: type alias `KvCluster` is never used
+  --> src/device/sliding/qkv_head_local.rs:15:6
+   |
+15 | type KvCluster = m![Ps / 1024];
+   |      ^^^^^^^^^
+
+warning: type alias `KvRows` is never used
+  --> src/device/sliding/qkv_head_local.rs:16:6
+   |
+16 | type KvRows = m![Ps / 4 % 256];
+   |      ^^^^^^
+
+warning: type alias `NativeSlices` is never used
+  --> src/device/sliding/qkv_head_local.rs:19:6
+   |
+19 | type NativeSlices = m![Dummy256];
+   |      ^^^^^^^^^^^^
+
+warning: type alias `NativeTrf` is never used
+  --> src/device/sliding/qkv_head_local.rs:20:17
+   |
+20 | pub(crate) type NativeTrf = TrfTensor<f8e4m3, Chip, QkvDualQueryCluster, NativeSlices, m![Dummy2], m![H]>;
+   |                 ^^^^^^^^^
+
+warning: type alias `NativeScale` is never used
+  --> src/device/sliding/qkv_head_local.rs:21:17
+   |
+21 | pub(crate) type NativeScale = VrfTensor<f32, Chip, QkvDualQueryCluster, NativeSlices, m![1 # 8]>;
+   |                 ^^^^^^^^^^^
+
+warning: function `project_query` is never used
+  --> src/device/sliding/qkv_head_local.rs:23:15
+   |
+23 | pub(crate) fn project_query(
+   |               ^^^^^^^^^^^^^
+
+warning: function `project_one_kv_matrix` is never used
+  --> src/device/sliding/qkv_head_local.rs:86:4
+   |
+86 | fn project_one_kv_matrix(
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_value` is never used
+   --> src/device/sliding/qkv_head_local.rs:150:15
+    |
+150 | pub(crate) fn project_key_value(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `root_mean_square` is never used
+   --> src/device/sliding/qkv_head_local.rs:164:4
+    |
+164 | fn root_mean_square<S: M>(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `normalize_weighted` is never used
+   --> src/device/sliding/qkv_head_local.rs:198:15
+    |
+198 | pub(crate) fn normalize_weighted<S: M>(
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/sliding/qkv_head_local.rs:228:15
+    |
+228 | pub(crate) fn normalize_value(
+    |               ^^^^^^^^^^^^^^^
+
+warning: function `rope_one` is never used
+   --> src/device/sliding/qkv_head_local.rs:249:4
+    |
+249 | fn rope_one<S: M>(
+    |    ^^^^^^^^
+
+warning: function `apply_rope` is never used
+   --> src/device/sliding/qkv_head_local.rs:315:15
+    |
+315 | pub(crate) fn apply_rope(
+    |               ^^^^^^^^^^
+
+warning: function `scale_head` is never used
+   --> src/device/sliding/qkv_head_local.rs:340:4
+    |
+340 | fn scale_head<S: M>(
+    |    ^^^^^^^^^^
+
+warning: function `normalize_native_input` is never used
+   --> src/device/sliding/qkv_head_local.rs:367:15
+    |
+367 | pub(crate) fn normalize_native_input(
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_query` is never used
+ --> src/device/sliding/projection.rs:7:15
+  |
+7 | pub(crate) fn project_query(
+  |               ^^^^^^^^^^^^^
+
+warning: type alias `KvRows` is never used
+  --> src/device/sliding/projection.rs:84:6
+   |
+84 | type KvRows = m![Ps / 8];
+   |      ^^^^^^
+
+warning: function `project_one_kv_matrix` is never used
+  --> src/device/sliding/projection.rs:86:4
+   |
+86 | fn project_one_kv_matrix(
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_value` is never used
+   --> src/device/sliding/projection.rs:151:15
+    |
+151 | pub(crate) fn project_key_value(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `project_output` is never used
+   --> src/device/sliding/projection.rs:178:15
+    |
+178 | pub(crate) fn project_output(
+    |               ^^^^^^^^^^^^^^
+
+warning: type alias `HiddenRows` is never used
+   --> src/device/sliding/projection.rs:198:6
+    |
+198 | type HiddenRows = m![H / 120, 1 # 8];
+    |      ^^^^^^^^^^
+
+warning: function `output_partial` is never used
+   --> src/device/sliding/projection.rs:200:4
+    |
+200 | fn output_partial(
+    |    ^^^^^^^^^^^^^^
+
+warning: function `add_partials` is never used
+   --> src/device/sliding/projection.rs:241:4
+    |
+241 | fn add_partials(
+    |    ^^^^^^^^^^^^
+
+warning: function `apply_output_channel_scale` is never used
+   --> src/device/sliding/projection.rs:268:4
+    |
+268 | fn apply_output_channel_scale(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `DS_F32` is never used
+ --> src/device/sliding/rmsnorm.rs:7:7
+  |
+7 | const DS_F32: f32 = Ds::SIZE as f32;
+  |       ^^^^^^
+
+warning: function `normalize_query` is never used
+ --> src/device/sliding/rmsnorm.rs:9:15
+  |
+9 | pub(crate) fn normalize_query<Cluster: M, Slice: M>(
+  |               ^^^^^^^^^^^^^^^
+
+warning: function `load_norm_weight` is never used
+  --> src/device/sliding/rmsnorm.rs:75:4
+   |
+75 | fn load_norm_weight<Cluster: M, Slice: M>(
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `root_mean_square` is never used
+  --> src/device/sliding/rmsnorm.rs:90:4
+   |
+90 | fn root_mean_square<Cluster: M, Slice: M>(
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `scale_by_rms_and_weight` is never used
+   --> src/device/sliding/rmsnorm.rs:136:4
+    |
+136 | fn scale_by_rms_and_weight<Cluster: M, Slice: M>(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `scale_by_rms` is never used
+   --> src/device/sliding/rmsnorm.rs:160:4
+    |
+160 | fn scale_by_rms<Cluster: M, Slice: M>(
+    |    ^^^^^^^^^^^^
+
+warning: function `normalize_key` is never used
+   --> src/device/sliding/rmsnorm.rs:182:15
+    |
+182 | pub(crate) fn normalize_key(
+    |               ^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/sliding/rmsnorm.rs:193:15
+    |
+193 | pub(crate) fn normalize_value(
+    |               ^^^^^^^^^^^^^^^
+
+warning: type alias `KvHeadsAcrossSlices` is never used
+ --> src/device/sliding/rope.rs:7:6
+  |
+7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];
+  |      ^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_rope` is never used
+ --> src/device/sliding/rope.rs:9:15
+  |
+9 | pub(crate) fn apply_rope(
+  |               ^^^^^^^^^^
+
+warning: type alias `KvCluster` is never used
+  --> src/device/sliding/qkv69382.rs:16:6
+   |
+16 | type KvCluster = m![Ps / 1024];
+   |      ^^^^^^^^^
+
+warning: type alias `KvRows` is never used
+  --> src/device/sliding/qkv69382.rs:17:6
+   |
+17 | type KvRows = m![Ps / 4 % 256];
+   |      ^^^^^^
+
+warning: type alias `NativeScale` is never used
+  --> src/device/sliding/qkv69382.rs:22:17
+   |
+22 | pub(crate) type NativeScale = VrfTensor<f32, Chip, QkvDualQueryCluster, NativeSlices, m![1 # 8]>;
+   |                 ^^^^^^^^^^^
+
+warning: function `copy_query` is never used
+   --> src/device/sliding/qkv69382.rs:110:15
+    |
+110 | pub(crate) fn copy_query(ctx: &mut Device, x: &QueryHeadTensor) -> QueryHeadTensor {
+    |               ^^^^^^^^^^
+
+warning: function `project_one_kv_matrix_scaled` is never used
+   --> src/device/sliding/qkv69382.rs:119:4
+    |
+119 | fn project_one_kv_matrix_scaled(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_projection_scale_kv` is never used
+   --> src/device/sliding/qkv69382.rs:280:4
+    |
+280 | fn apply_projection_scale_kv(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_query_project_scaled` is never used
+   --> src/device/sliding/qkv69382.rs:426:15
+    |
+426 | pub(crate) fn normalize_query_project_scaled(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/sliding/qkv69382.rs:551:15
+    |
+551 | pub(crate) fn normalize_value(ctx: &mut Device, x: &KvHeadTensor) -> KvHeadTensor {
+    |               ^^^^^^^^^^^^^^^
+
+warning: function `rope_one` is never used
+   --> src/device/sliding/qkv69382.rs:569:4
+    |
+569 | fn rope_one<S: M>(
+    |    ^^^^^^^^
+
+warning: function `scale_head` is never used
+   --> src/device/sliding/qkv69382.rs:834:4
+    |
+834 | fn scale_head<S: M>(
+    |    ^^^^^^^^^^
+
+warning: `furiosa-opt-gemma4` (lib) generated 132 warnings (run `cargo fix --lib -p furiosa-opt-gemma4` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 4m 38s

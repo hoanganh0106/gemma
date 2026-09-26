@@ -1,0 +1,13 @@
+{
+  "id": 79444,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p028-control-a2-after",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T11:29:20Z",
+  "started_at": "2026-09-23T11:29:30Z",
+  "finished_at": "2026-09-23T11:29:36Z",
+  "duration_sec": 6.617201168,
+  "exit_code": 0,
+  "device_id": null
+}

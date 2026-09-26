@@ -1,0 +1,12 @@
+{
+  "package": "P062-integrated-k3-warmup",
+  "label": "p062-k3-warmup-a1",
+  "diagnostic": false,
+  "binary_sha256": "76f6fd87cd8f3164853f971067e60ea05cfbced9eccbe099740b54a61fa3f282",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 84319 (p062-k3-warmup-a1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 84319
+}

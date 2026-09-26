@@ -1,0 +1,854 @@
+[
+  {
+    "kernel": "k1",
+    "schedule_sha256": "80b57687b69df536c4b4b02cec0a9e5cdd0dd1f67648c2d52b8f6a39da15e022",
+    "makespan": 42539,
+    "instruction_count": 154,
+    "context_occupied_cycles": {
+      "Noop": 0,
+      "DmaEngine": 38174,
+      "PeCore": 2056,
+      "SubContext": 7166,
+      "MainContext": 16737,
+      "VectorEngine": 12249
+    },
+    "instruction_types": {
+      "Sub": 55,
+      "DmaLoad": 12,
+      "Core": 40,
+      "Main": 40,
+      "DmaGather": 2,
+      "DmaStore": 3,
+      "DmaScatter": 2
+    },
+    "longest_instructions": [
+      {
+        "index": "49",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 2848,
+        "end": 16360,
+        "duration": 13512,
+        "util": {
+          "total_util": 0.85597986,
+          "base_util": 0.85597986,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:31:9\n\nweight.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "277",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 23786,
+        "end": 30816,
+        "duration": 7030,
+        "util": {
+          "total_util": 0.82261735,
+          "base_util": 0.82261735,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:85:9\n\nweight.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "302",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 31267,
+        "end": 38297,
+        "duration": 7030,
+        "util": {
+          "total_util": 0.82261735,
+          "base_util": 0.82261735,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:85:9\n\nweight.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "148",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 16360,
+        "end": 17604,
+        "duration": 1244,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:35:92\n\ndevice.main\n.begin(weight.view())\n.fetch::<m![Qs % 8, H / 32], m![H % 32]>()\n.collect::<m![Qs % 8, H / 32], m![H % 32]>()\n.contract_outer::<m![Qs % 8, H / 32], m![H % 32], _, _, _>(x_trf)\n.contract_packet::<m![1]>()\n.contract_time::<m![Qs % 8]>()\n.contract_lane::<m![Qs % 8, Dummy2], m![1 # 8]>(LaneMode::Sequential)\n.vector_init()\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_trim::<m![1 # 4]>()\n.vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), x_scale)\n.vector_intra_slice_reduce::<Dummy2, m![Qs % 8], m![1 # 4]>(IntraSliceReduceOpF32::Add)\n.vector_widen_pad::<m![1 # 8]>()\n.vector_final()\n.cast::<bf16, m![1 # 16]>()\n.transpose::<m![Qs / 4 % 2], m![Qs % 4 # 16]>()\n.commit_trim::<m![Qs % 4]>()\n.commit()"
+      },
+      {
+        "index": "131",
+        "type": "Main",
+        "contexts": [
+          "MainContext"
+        ],
+        "begin": 7725,
+        "end": 8949,
+        "duration": 1224,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:562:111\n\ndevice.main\n.begin(parts.view())\n.fetch::<m![Dummy2, H / 8 % 15], m![H % 8]>()\n.switch::<Copies, m![Dummy2, H / 8 % 15, H / 120]>(SwitchConfig::Broadcast1 { slice1: 32, slice0: 1 })\n.collect::<m![Dummy2, H / 8 % 15, H / 120], m![H % 8 # 32]>()\n.commit_trim::<m![H % 8]>()\n.commit()"
+      },
+      {
+        "index": "137",
+        "type": "Main",
+        "contexts": [
+          "MainContext"
+        ],
+        "begin": 8949,
+        "end": 10173,
+        "duration": 1224,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:572:91\n\ndevice.main\n.begin(shared.view())\n.fetch::<m![Dummy2, H / 8], m![H % 8]>()\n.collect::<m![Dummy2, H / 8], m![H % 8 # 32]>()\n.commit_trim::<m![H % 8]>()\n.commit()"
+      },
+      {
+        "index": "141",
+        "type": "Sub",
+        "contexts": [
+          "SubContext"
+        ],
+        "begin": 10173,
+        "end": 11396,
+        "duration": 1223,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:578:26\n\ndevice.sub\n.begin(dense.view())\n.fetch::<m![Dummy2, H / 32], m![H % 32]>()\n.collect::<m![Dummy2, H / 32], m![H % 32]>()\n.to_trf()"
+      },
+      {
+        "index": "162",
+        "type": "DmaGather",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 17561,
+        "end": 18495,
+        "duration": 934,
+        "util": {
+          "total_util": 0.0010706638,
+          "base_util": 0.0010706638,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:323:9\n\nsin.dma_gather_scaled(rope_offset)"
+      },
+      {
+        "index": "190",
+        "type": "DmaGather",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 18832,
+        "end": 19766,
+        "duration": 934,
+        "util": {
+          "total_util": 0.0010706638,
+          "base_util": 0.0010706638,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:321:9\n\ncos.dma_gather_scaled(rope_offset)"
+      },
+      {
+        "index": "372",
+        "type": "DmaScatter",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 38297,
+        "end": 39226,
+        "duration": 929,
+        "util": {
+          "total_util": 0.004305705,
+          "base_util": 0.004305705,
+          "efficiency": 1.0
+        },
+        "description": "--> src/ops.rs:72:5\n\nk.dma_scatter::<m![1], _, _>(kv_offset, k_cache)"
+      },
+      {
+        "index": "411",
+        "type": "DmaScatter",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 41010,
+        "end": 41939,
+        "duration": 929,
+        "util": {
+          "total_util": 0.004305705,
+          "base_util": 0.004305705,
+          "efficiency": 1.0
+        },
+        "description": "--> src/ops.rs:71:5\n\nv.dma_scatter::<m![1], _, _>(kv_offset, v_cache)"
+      },
+      {
+        "index": "15",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 1003,
+        "end": 1924,
+        "duration": 921,
+        "util": {
+          "total_util": 0.09880564,
+          "base_util": 0.09880564,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:374:9\n\nweight.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "42",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 1924,
+        "end": 2845,
+        "duration": 921,
+        "util": {
+          "total_util": 0.09880564,
+          "base_util": 0.09880564,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:372:9\n\nx.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "299",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 30816,
+        "end": 31580,
+        "duration": 764,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:89:92\n\ndevice.main\n.begin(weight.view())\n.fetch::<m![Ps % 4, H / 32], m![H % 32]>()\n.collect::<m![Ps % 4, H / 32], m![H % 32]>()\n.contract_outer::<m![Ps % 4, H / 32], m![H % 32], _, _, _>(x_trf)\n.contract_packet::<m![1]>()\n.contract_time::<m![Ps % 4]>()\n.contract_lane::<m![Ps % 4, Dummy2], m![1 # 8]>(LaneMode::Sequential)\n.vector_init()\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_trim::<m![1 # 4]>()\n.vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), x_scale)\n.vector_intra_slice_reduce::<Dummy2, m![Ps % 4], m![1 # 4]>(IntraSliceReduceOpF32::Add)\n.vector_widen_pad::<m![1 # 8]>()\n.vector_final()\n.cast::<bf16, m![1 # 16]>()\n.transpose::<m![1], m![Ps % 4 # 16]>()\n.commit_trim::<m![Ps % 4]>()\n.commit()"
+      },
+      {
+        "index": "371",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 38297,
+        "end": 39061,
+        "duration": 764,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/qkv_head_local.rs:89:92\n\ndevice.main\n.begin(weight.view())\n.fetch::<m![Ps % 4, H / 32], m![H % 32]>()\n.collect::<m![Ps % 4, H / 32], m![H % 32]>()\n.contract_outer::<m![Ps % 4, H / 32], m![H % 32], _, _, _>(x_trf)\n.contract_packet::<m![1]>()\n.contract_time::<m![Ps % 4]>()\n.contract_lane::<m![Ps % 4, Dummy2], m![1 # 8]>(LaneMode::Sequential)\n.vector_init()\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_trim::<m![1 # 4]>()\n.vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), x_scale)\n.vector_intra_slice_reduce::<Dummy2, m![Ps % 4], m![1 # 4]>(IntraSliceReduceOpF32::Add)\n.vector_widen_pad::<m![1 # 8]>()\n.vector_final()\n.cast::<bf16, m![1 # 16]>()\n.transpose::<m![1], m![Ps % 4 # 16]>()\n.commit_trim::<m![Ps % 4]>()\n.commit()"
+      },
+      {
+        "index": "ExplicitSync(89)",
+        "type": "Core",
+        "contexts": [
+          "PeCore"
+        ],
+        "begin": 20019,
+        "end": 20619,
+        "duration": 600,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": ""
+      }
+    ]
+  },
+  {
+    "kernel": "k2",
+    "schedule_sha256": "57ce0b6b86663c39c3bc519728c0954754fadf5bc2001444ce296bc35d4cb895",
+    "makespan": 24718,
+    "instruction_count": 44,
+    "context_occupied_cycles": {
+      "Noop": 0,
+      "DmaEngine": 18052,
+      "PeCore": 2480,
+      "MainContext": 5846,
+      "VectorEngine": 5846,
+      "SubContext": 2541
+    },
+    "instruction_types": {
+      "Sub": 13,
+      "DmaLoad": 6,
+      "Core": 15,
+      "Main": 7,
+      "DmaStos": 1,
+      "DmaStore": 2
+    },
+    "longest_instructions": [
+      {
+        "index": "18",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 1936,
+        "end": 15319,
+        "duration": 13383,
+        "util": {
+          "total_util": 0.86423075,
+          "base_util": 0.86423075,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:131:33\n\nweight.view().to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "96",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 20223,
+        "end": 22802,
+        "duration": 2579,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/output31.rs:227:71\n\ndevice\n.main\n.begin(partial.view())\n.fetch::<m![1], m![1 # 8]>()\n.collect::<m![1], m![1 # 8]>()\n.vector_init()\n.vector_inter_slice_reduce::<m![1 # 32, Vr], m![1]>(InterSliceReduceOpF32::Add)\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_trim::<m![1 # 4]>()\n.vector_fp_binary(FpBinaryOp::AddF, EPS_SCALED)\n.vector_stash()\n.vector_fp_unary(FpUnaryOp::Sqrt)\n.vector_fp_div(Stash)\n.vector_widen_pad::<m![1 # 8]>()\n.vector_final()\n.commit_trim::<m![1 # 8]>()\n.commit()"
+      },
+      {
+        "index": "42",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 15319,
+        "end": 16693,
+        "duration": 1374,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/output31.rs:52:5\n\ndevice.main\n.begin(weight.view())\n.fetch::<m![H % 120, Qs / 32 % 8], m![Qs % 32]>()\n.collect::<m![H % 120, Qs / 32 % 8], m![Qs % 32]>()\n.contract_outer::<m![H % 120, Qs / 64 % 4], m![Qs % 64], _, _, _>(x_trf)\n.contract_packet::<m![1]>()\n.contract_time::<m![H % 120]>()\n.contract_lane::<m![H % 120, Lq], m![1 # 8]>(LaneMode::Sequential)\n.vector_init()\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_trim::<m![1 # 4]>()\n.vector_intra_slice_reduce::<Lq, m![H % 120], m![1 # 4]>(IntraSliceReduceOpF32::Add)\n.vector_widen_pad::<m![1 # 8]>()\n.vector_inter_slice_reduce::<Rows, m![H % 120]>(InterSliceReduceOpF32::Add)\n.vector_final()\n.cast::<bf16, m![1 # 16]>()\n.transpose::<m![H % 120 / 4], m![H % 120 % 4 # 16]>()\n.commit_trim::<m![H % 120 % 4]>()\n.commit_view(z.view_mut())"
+      },
+      {
+        "index": "DramReuse(29)",
+        "type": "Core",
+        "contexts": [
+          "PeCore"
+        ],
+        "begin": 18222,
+        "end": 19476,
+        "duration": 1254,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": ""
+      },
+      {
+        "index": "4",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 1003,
+        "end": 1936,
+        "duration": 933,
+        "util": {
+          "total_util": 0.20685959,
+          "base_util": 0.20685959,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:134:85\n\nx.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "112",
+        "type": "DmaStore",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 23470,
+        "end": 24118,
+        "duration": 648,
+        "util": {
+          "total_util": 0.009259259,
+          "base_util": 0.009259259,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:270:5\n\nout.view().to_hbm_view(&mut device.tdma, residual_hbm.view_mut())"
+      },
+      {
+        "index": "ExplicitSync(30)",
+        "type": "Core",
+        "contexts": [
+          "PeCore"
+        ],
+        "begin": 17676,
+        "end": 18276,
+        "duration": 600,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": ""
+      },
+      {
+        "index": "ExplicitSync(40)",
+        "type": "Core",
+        "contexts": [
+          "PeCore"
+        ],
+        "begin": 24118,
+        "end": 24718,
+        "duration": 600,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": ""
+      },
+      {
+        "index": "44",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 15398,
+        "end": 15944,
+        "duration": 546,
+        "util": {
+          "total_util": 0.010989011,
+          "base_util": 0.010989011,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:169:32\n\nrms_weight.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "50",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 15947,
+        "end": 16493,
+        "duration": 546,
+        "util": {
+          "total_util": 0.010989011,
+          "base_util": 0.010989011,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:159:34\n\nweight_scale.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "74",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 17676,
+        "end": 18222,
+        "duration": 546,
+        "util": {
+          "total_util": 0.010989011,
+          "base_util": 0.010989011,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:143:37\n\nresidual_hbm.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "86",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 19276,
+        "end": 19822,
+        "duration": 546,
+        "util": {
+          "total_util": 0.010989011,
+          "base_util": 0.010989011,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:202:32\n\nhop.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "68",
+        "type": "Sub",
+        "contexts": [
+          "SubContext"
+        ],
+        "begin": 17094,
+        "end": 17597,
+        "duration": 503,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/output31.rs:195:23\n\ndevice\n.sub\n.begin(sw_dm.view())\n.fetch::<m![1], m![H % 480]>()\n.collect::<m![H / 8 % 60], m![H % 8]>()\n.to_vrf()"
+      },
+      {
+        "index": "70",
+        "type": "DmaStore",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 17139,
+        "end": 17597,
+        "duration": 458,
+        "util": {
+          "total_util": 0.013100437,
+          "base_util": 0.013100437,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/sliding/output31.rs:156:5\n\nz_gathered.view().to_hbm_view(&mut device.tdma, hop.view_mut())"
+      },
+      {
+        "index": "61",
+        "type": "DmaStos",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 16693,
+        "end": 17139,
+        "duration": 446,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/output31.rs:155:9\n\nz.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "60",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 16693,
+        "end": 17094,
+        "duration": 401,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/sliding/output31.rs:181:30\n\ndevice\n.main\n.begin(scale_dm.view())\n.fetch::<m![1], m![H % 480]>()\n.fetch_cast::<f32>()\n.collect::<m![H / 8 % 60], m![H % 8]>()\n.vector_init()\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_split::<m![H / 4 % 120], m![H % 4]>()\n.vector_fp_binary(FpBinaryOp::MulF(FpMulAlu::Mul0), &rms_weight)\n.vector_widen_concat::<m![H / 8 % 60], m![H % 8]>()\n.vector_final()\n.commit_trim::<m![H % 8]>()\n.commit()"
+      }
+    ]
+  },
+  {
+    "kernel": "k3",
+    "schedule_sha256": "55e32ca5824c8d02dda44da6afa8b9c20d3aca12679ccb3c0a97cf4a3b47e84f",
+    "makespan": 110520,
+    "instruction_count": 170,
+    "context_occupied_cycles": {
+      "Noop": 0,
+      "SubContext": 27063,
+      "DmaEngine": 100780,
+      "PeCore": 1600,
+      "MainContext": 44073,
+      "VectorEngine": 41922
+    },
+    "instruction_types": {
+      "Sub": 64,
+      "DmaLoad": 21,
+      "Core": 54,
+      "Main": 29,
+      "DmaStore": 2
+    },
+    "longest_instructions": [
+      {
+        "index": "75",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 3754,
+        "end": 28366,
+        "duration": 24612,
+        "util": {
+          "total_util": 0.88107425,
+          "base_util": 0.88107425,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:210:88\n\n$w.to_dm(&mut $device.tdma)"
+      },
+      {
+        "index": "138",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 34096,
+        "end": 58708,
+        "duration": 24612,
+        "util": {
+          "total_util": 0.88107425,
+          "base_util": 0.88107425,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:210:88\n\n$w.to_dm(&mut $device.tdma)"
+      },
+      {
+        "index": "129",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 28369,
+        "end": 37632,
+        "duration": 9263,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:213:90\n\n$device\n.main\n.begin(packed.view())\n.fetch::<m![L % 30, Ut], m![Xp]>()\n.fetch_table_lookup::<f8e4m3>()\n.collect::<m![L % 30, Ut, Xp / 32], m![Xp % 32]>()\n.contract_outer::<m![L % 30, Ut, T2], m![Xp], _, _, _>(&$x_trf)\n.contract_packet::<m![Xp / 16]>()\n.contract_time::<m![L % 30, Ut]>()\n.contract_lane::<m![L % 30, Ut], m![Xp / 16 # 8]>(LaneMode::Sequential)\n.cast::<bf16, m![Xp / 16 # 16]>()\n.commit_trim::<m![Xp / 16]>()\n.commit()"
+      },
+      {
+        "index": "169",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 58708,
+        "end": 67971,
+        "duration": 9263,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:213:90\n\n$device\n.main\n.begin(packed.view())\n.fetch::<m![L % 30, Ut], m![Xp]>()\n.fetch_table_lookup::<f8e4m3>()\n.collect::<m![L % 30, Ut, Xp / 32], m![Xp % 32]>()\n.contract_outer::<m![L % 30, Ut, T2], m![Xp], _, _, _>(&$x_trf)\n.contract_packet::<m![Xp / 16]>()\n.contract_time::<m![L % 30, Ut]>()\n.contract_lane::<m![L % 30, Ut], m![Xp / 16 # 8]>(LaneMode::Sequential)\n.cast::<bf16, m![Xp / 16 # 16]>()\n.commit_trim::<m![Xp / 16]>()\n.commit()"
+      },
+      {
+        "index": "201",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 70327,
+        "end": 78977,
+        "duration": 8650,
+        "util": {
+          "total_util": 0.83572257,
+          "base_util": 0.83572257,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:474:110\n\n$w\n.view()\n.tile::<m![H / 2 % 15], $len, m![H / 30, H / 2 % 15 = $len # 15, H % 2, L]>($start)\n.to_dm(&mut $device.tdma)"
+      },
+      {
+        "index": "278",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 79815,
+        "end": 88465,
+        "duration": 8650,
+        "util": {
+          "total_util": 0.83572257,
+          "base_util": 0.83572257,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:474:110\n\n$w\n.view()\n.tile::<m![H / 2 % 15], $len, m![H / 30, H / 2 % 15 = $len # 15, H % 2, L]>($start)\n.to_dm(&mut $device.tdma)"
+      },
+      {
+        "index": "313",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 89303,
+        "end": 97953,
+        "duration": 8650,
+        "util": {
+          "total_util": 0.83572257,
+          "base_util": 0.83572257,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:474:110\n\n$w\n.view()\n.tile::<m![H / 2 % 15], $len, m![H / 30, H / 2 % 15 = $len # 15, H % 2, L]>($start)\n.to_dm(&mut $device.tdma)"
+      },
+      {
+        "index": "178",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 65366,
+        "end": 70327,
+        "duration": 4961,
+        "util": {
+          "total_util": 0.5464624,
+          "base_util": 0.5464624,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:457:98\n\nscale.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "130",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 28369,
+        "end": 33249,
+        "duration": 4880,
+        "util": {
+          "total_util": 0.5555328,
+          "base_util": 0.5555328,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:237:84\n\nscale.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "170",
+        "type": "DmaLoad",
+        "contexts": [
+          "DmaEngine"
+        ],
+        "begin": 58708,
+        "end": 63588,
+        "duration": 4880,
+        "util": {
+          "total_util": 0.5555328,
+          "base_util": 0.5555328,
+          "efficiency": 1.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:237:84\n\nscale.to_dm(&mut device.tdma)"
+      },
+      {
+        "index": "259",
+        "type": "Main",
+        "contexts": [
+          "MainContext"
+        ],
+        "begin": 75374,
+        "end": 78711,
+        "duration": 3337,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:435:84\n\ndevice\n.main\n.begin(q.view())\n.fetch::<m![T2, Xd / 24 % 5], m![Xd % 24]>()\n.switch::<DownSlices, m![T2, Xd / 24 % 5, Xd / 120]>(SwitchConfig::Broadcast1 { slice1: 64, slice0: 4 })\n.collect::<m![T2, Xd / 24 % 5, Xd / 120], m![Xd % 24 # 32]>()\n.commit_trim::<m![Xd % 24]>()\n.commit()"
+      },
+      {
+        "index": "283",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 80894,
+        "end": 84157,
+        "duration": 3263,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:480:103\n\n$device\n.main\n.begin(packed.view())\n.fetch::<m![H / 2 % 15 = $len, Dt], m![Xp]>()\n.fetch_table_lookup::<f8e4m3>()\n.collect::<m![H / 2 % 15 = $len, Dt, Xp / 32], m![Xp % 32]>()\n.contract_outer::<m![H / 2 % 15 = $len, Dt, T2], m![Xp], _, _, _>(&$x_trf)\n.contract_packet::<m![Xp / 16]>()\n.contract_time::<m![H / 2 % 15 = $len, Dt]>()\n.contract_lane::<m![H / 2 % 15 = $len, Dt], m![Xp / 16 # 8]>(LaneMode::Sequential)\n.cast::<bf16, m![Xp / 16 # 16]>()\n.commit_trim::<m![Xp / 16]>()\n.commit()"
+      },
+      {
+        "index": "307",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 88465,
+        "end": 91728,
+        "duration": 3263,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:480:103\n\n$device\n.main\n.begin(packed.view())\n.fetch::<m![H / 2 % 15 = $len, Dt], m![Xp]>()\n.fetch_table_lookup::<f8e4m3>()\n.collect::<m![H / 2 % 15 = $len, Dt, Xp / 32], m![Xp % 32]>()\n.contract_outer::<m![H / 2 % 15 = $len, Dt, T2], m![Xp], _, _, _>(&$x_trf)\n.contract_packet::<m![Xp / 16]>()\n.contract_time::<m![H / 2 % 15 = $len, Dt]>()\n.contract_lane::<m![H / 2 % 15 = $len, Dt], m![Xp / 16 # 8]>(LaneMode::Sequential)\n.cast::<bf16, m![Xp / 16 # 16]>()\n.commit_trim::<m![Xp / 16]>()\n.commit()"
+      },
+      {
+        "index": "333",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 97953,
+        "end": 101216,
+        "duration": 3263,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:480:103\n\n$device\n.main\n.begin(packed.view())\n.fetch::<m![H / 2 % 15 = $len, Dt], m![Xp]>()\n.fetch_table_lookup::<f8e4m3>()\n.collect::<m![H / 2 % 15 = $len, Dt, Xp / 32], m![Xp % 32]>()\n.contract_outer::<m![H / 2 % 15 = $len, Dt, T2], m![Xp], _, _, _>(&$x_trf)\n.contract_packet::<m![Xp / 16]>()\n.contract_time::<m![H / 2 % 15 = $len, Dt]>()\n.contract_lane::<m![H / 2 % 15 = $len, Dt], m![Xp / 16 # 8]>(LaneMode::Sequential)\n.cast::<bf16, m![Xp / 16 # 16]>()\n.commit_trim::<m![Xp / 16]>()\n.commit()"
+      },
+      {
+        "index": "401",
+        "type": "Main",
+        "contexts": [
+          "MainContext",
+          "VectorEngine"
+        ],
+        "begin": 106025,
+        "end": 108604,
+        "duration": 2579,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:647:76\n\ndevice\n.main\n.begin(mean_square.view())\n.fetch::<m![1], m![1 # 8]>()\n.collect::<m![1], m![1 # 8]>()\n.vector_init()\n.vector_inter_slice_reduce::<m![1 # 32, Dummy8], m![1]>(InterSliceReduceOpF32::Add)\n.vector_intra_slice_tag(TagMode::Zero)\n.vector_narrow_trim::<m![1 # 4]>()\n.vector_fp_binary(FpBinaryOp::AddF, EPS)\n.vector_fp_unary(FpUnaryOp::Sqrt)\n.vector_widen_pad::<m![1 # 8]>()\n.vector_final()\n.commit_trim::<m![1 # 8]>()\n.commit()"
+      },
+      {
+        "index": "274",
+        "type": "Sub",
+        "contexts": [
+          "SubContext"
+        ],
+        "begin": 78711,
+        "end": 80894,
+        "duration": 2183,
+        "util": {
+          "total_util": 0.0,
+          "base_util": 0.0,
+          "efficiency": 0.0
+        },
+        "description": "--> src/device/shared/ffn7.rs:445:5\n\ndevice.sub\n.begin(gathered.view())\n.fetch::<m![T2, Dt, Xp / 32], m![Xp % 32]>()\n.collect::<m![T2, Dt, Xp / 32], m![Xp % 32]>()\n.to_trf()"
+      }
+    ]
+  }
+]

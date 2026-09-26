@@ -5,8 +5,8 @@ RNGD. Stage 1 focuses on three decoder-layer kernels; Stage 2 will focus on end-
 (E2E) performance. Competitors modify the allowed implementation while preserving the
 public interface and the model's numerical behavior.
 
-The two-stage format is confirmed. Only the specific submission and scoring values marked
-**TBD** remain to be announced.
+The two-stage format is confirmed. Current Round 1 evaluation rules are recorded in
+[`EVALUATION.md`](EVALUATION.md); remaining **TBD** values apply to Stage 2.
 
 ## What you are optimizing
 
@@ -19,7 +19,8 @@ The three Stage 1 kernels are declared in `src/ops.rs`:
 | `ops::decoder_feedforward` | RMSNorm, GeGLU MLP, post-FF RMSNorm, residual add, and layer gate |
 
 The kernels use the model's existing quantized weights and tensor layouts. Each kernel is
-measured as one invocation for the Stage 1 test.
+measured across 3 independently-seeded input configurations for the Stage 1 test (see
+"Grading criteria" below), not a single fixed invocation.
 
 Stage 2 covers the complete E2E model-serving path except for the public API endpoint in
 `src/api/`. This includes model execution, host orchestration, tokenization, image and
@@ -33,18 +34,19 @@ unknown submission and scoring values are listed explicitly.
 ### Stage 1 — Kernel optimization
 
 Stage 1 is for optimizing the three kernels listed above. A dedicated grading server will
-run the provided `tests/test_kernels.rs` against each submission. This test is the source
+run the provided `src/bin/test_kernels.rs` against each submission. This test is the source
 of truth for Stage 1 correctness and kernel performance.
 
 The Stage 1 test checks:
 
 1. **Buildability:** the allowed code compiles with the competition toolchain.
-2. **Correctness:** all three kernels satisfy the published tolerances.
-3. **Performance:** the test reports real RNGD cycle counts for each kernel.
+2. **Correctness:** each kernel satisfies the published tolerances on every one of 3
+   independently-seeded input configurations, not just one -- a kernel that special-cases
+   a fixed input fails as soon as a different configuration exposes it.
+3. **Performance:** the test reports each kernel's median RNGD cycle count across those 3
+   runs, so one unusually fast or slow run doesn't move the number that's graded.
 
-Stage 1 values to be finalized:
-
-- **TBD:** submission deadline.
+**Stage 1 submission deadline: September 30, 2026, 11:59 PM AoE.**
 
 ### Stage 2 — End-to-end optimization
 
@@ -64,7 +66,7 @@ The competition uses one grading policy across both stages. Correctness is a har
 submission that fails a required correctness check receives no performance credit, even if
 it is faster.
 
-For the Stage 1 kernel evaluation, `tests/test_kernels.rs` defines the following tolerances:
+For the Stage 1 kernel evaluation, `src/bin/test_kernels.rs` defines the following tolerances:
 
 | Kernel | Absolute tolerance | Relative tolerance |
 |---|---:|---:|
@@ -73,15 +75,18 @@ For the Stage 1 kernel evaluation, `tests/test_kernels.rs` defines the following
 | `decoder_feedforward` | `0.01` | `1e-2` |
 
 The grading server will measure performance using the official evaluation. The Stage 1 test
-reports RNGD cycle counts for each kernel; the Stage 2 E2E performance metric is TBD.
+reports each kernel's median RNGD cycle count across 3 independently-seeded runs; the
+Stage 2 E2E performance metric is TBD.
 
-The following scoring values are still TBD:
+For Stage 1, the score is the geometric mean of speedup over the matching version baseline:
 
-| Field | Planned rule |
-|---|---|
-| Performance metric and weighting | **TBD** |
-| Failed or timed-out run | **TBD** |
-| Reproducibility and code review | **TBD** |
+```text
+score = ((B1 / S1) * (B2 / S2) * (B3 / S3)) ** (1/3)
+```
+
+Each `Bi` and `Si` is the median of three independently seeded runs for the same kernel.
+Correctness is a hard gate across all nine kernel/input checks. See [`EVALUATION.md`](EVALUATION.md)
+for the version and Round 2 rules.
 
 Schedule makespan is a useful development metric, but it is not a substitute for official
 grading results.
@@ -98,7 +103,7 @@ The Stage 1 skeleton is intentionally fixed so that submissions remain comparabl
 2. **Only permitted implementation changes are graded.** Changes to `src/device/` and the
    function bodies in `src/ops.rs` are included in the evaluation. Everything else is
    ignored, including `src/ops_vision.rs`, `src/ops_audio.rs`, `src/axes.rs`, `src/host/`,
-   `src/api/`, `src/bin/`, `src/lib.rs`, and `tests/`.
+   `src/api/`, `src/bin/`, and `src/lib.rs`.
 3. **Keep kernel module paths stable.** `src/ops.rs`, `src/ops_vision.rs`, and
    `src/ops_audio.rs` must remain at the crate root because compiled kernel names include
    `module_path!()`.
@@ -147,7 +152,7 @@ For a locally available RNGD setup, the repository also provides:
 cargo binstall moa-submitter-cli
 
 moa-submitter login
-moa-submitter submit         # run from the repository root
+moa-submitter submit         # run from the repository root; auto-detects furiosa-opt-std version
 moa-submitter status         # the state of every submission you have made
 moa-submitter status <id>    # the cycle counts and score of one submission
 moa-submitter log <id>       # the complete log, stage by stage
@@ -171,7 +176,7 @@ sudo apt install gcc-aarch64-linux-gnu
 
 rustup toolchain install nightly-2026-05-01
 cargo +nightly-2026-05-01 install cargo-binstall
-cargo +nightly-2026-05-01 binstall cargo-furiosa-opt@0.6.0
+cargo +nightly-2026-05-01 binstall cargo-furiosa-opt@0.8.1
 cargo install furiosa-schedule-viewer
 ```
 
@@ -192,6 +197,27 @@ The cli commands used for troubleshooting are:
 | `furiosa-arena logs <id> --follow` | Stream job output |
 | `furiosa-arena list` | List your jobs |
 | `furiosa-arena cancel <id>` | Cancel a queued or running job |
+
+### Baseline source code per `furiosa-opt-std` version
+
+The baseline is published for each supported `furiosa-opt-std` version. Each version's
+baseline code is available under the matching git tag:
+
+| `furiosa-opt-std` | Tag | Checkout |
+|---|---|---|
+| 0.8.1 | `v0.8.1` | `git checkout v0.8.1` |
+| 0.6.0 | `v0.6.0` | `git checkout v0.6.0` |
+
+`main` tracks the latest supported version.
+
+## Source code sharing and competition fairness
+
+Publicly sharing competition source code before the official deadline is strictly
+prohibited. If publicly shared code is copied or plagiarized by another participant, both
+the code provider and the user will be immediately disqualified from receiving any awards.
+If you currently have any competition code publicly accessible, please set it to private or
+remove it immediately. Thank you for your active cooperation in maintaining a fair
+competition environment.
 
 ## References
 

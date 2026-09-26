@@ -1,0 +1,13 @@
+{
+  "id": 83720,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P051-direct-rope-broadcast",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T02:29:21Z",
+  "started_at": "2026-09-24T02:29:48Z",
+  "finished_at": "2026-09-24T02:29:55Z",
+  "duration_sec": 6.680223971,
+  "exit_code": 0,
+  "device_id": null
+}

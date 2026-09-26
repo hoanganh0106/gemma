@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-fixed-rings/arena-78938.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    87149,
+    39994,
+    217237
+  ],
+  "samples": [
+    [
+      90865,
+      86934,
+      87149
+    ],
+    [
+      40408,
+      39574,
+      39994
+    ],
+    [
+      219053,
+      217237,
+      216846
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 7.914748976865034
+}

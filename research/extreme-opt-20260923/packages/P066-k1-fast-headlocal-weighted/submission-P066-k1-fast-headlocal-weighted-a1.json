@@ -1,0 +1,12 @@
+{
+  "package": "P066-k1-fast-headlocal-weighted",
+  "label": "P066-k1-fast-headlocal-weighted-a1",
+  "diagnostic": false,
+  "binary_sha256": "5912d6554032032ec96c7483922cba55abd41822c6443424edbf0fbeeff6977a",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 85088 (P066-k1-fast-headlocal-weighted-a1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 85088
+}

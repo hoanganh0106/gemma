@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P053-k1-native-scale-on-p051/arena-84010.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    87605,
+    37905,
+    217065
+  ],
+  "samples": [
+    [
+      90569,
+      86526,
+      87605
+    ],
+    [
+      38012,
+      37905,
+      37747
+    ],
+    [
+      220319,
+      215451,
+      217065
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.045673944518166
+}

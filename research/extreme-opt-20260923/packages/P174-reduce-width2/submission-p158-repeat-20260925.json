@@ -1,0 +1,9 @@
+{
+  "package": "P158-P005-plus-P109-weight-order",
+  "label": "p158-repeat-20260925",
+  "diagnostic": false,
+  "binary_sha256": "390b0501301b94a400dbd5bd0dc0fb96151770d16b137dc0bd56224b970a34c6",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "DISPATCH_FAILED_LOCAL_EXECUTABLE_NOT_FOUND",
+  "stderr": "Initial Windows invocation could not find furiosa-arena; controller list showed no matching job. Safe to resubmit from WSL with a new label."
+}

@@ -1,0 +1,12 @@
+{
+  "package": "P053-k1-native-scale-on-p051",
+  "label": "P053-native-scale-hw-20260923-a1",
+  "diagnostic": false,
+  "binary_sha256": "0206b2d3d97ebaf9de521d325cb82df467f248f1887541d244be6c15fad91407",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 84010 (P053-native-scale-hw-20260923-a1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 84010
+}

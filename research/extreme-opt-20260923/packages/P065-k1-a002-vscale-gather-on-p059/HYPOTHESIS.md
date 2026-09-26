@@ -1,0 +1,1 @@
+P065 starts from P059. It preserves P059 normalize_native_input weighted RMSNorm semantics exactly. Only the V projection tail changes: V uses project_one_kv_matrix_scaled during projection gather, then normalize_value, matching historical A002 structure while retaining rule-correct input_rms_weight handling.

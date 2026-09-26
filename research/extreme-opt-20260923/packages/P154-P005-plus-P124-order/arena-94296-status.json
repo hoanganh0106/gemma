@@ -1,0 +1,13 @@
+{
+  "id": 94296,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p154-p124-order-clean-20260925",
+  "status": "FAILED",
+  "created_at": "2026-09-25T10:40:16Z",
+  "started_at": "2026-09-25T10:40:28Z",
+  "finished_at": "2026-09-25T10:40:35Z",
+  "duration_sec": 6.688768883,
+  "exit_code": 1,
+  "device_id": null
+}

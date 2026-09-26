@@ -1,0 +1,12 @@
+{
+  "package": "P193-partial-mul-swap",
+  "label": "p193-partial-mul-swap-repeat-20260925",
+  "diagnostic": false,
+  "binary_sha256": "c97b7cccd4dd8708b3c477b4b7cb074a811ee1ed8ae30bb68c28d05f9e6f61a1",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 96835 (p193-partial-mul-swap-repeat-20260925)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 96835
+}

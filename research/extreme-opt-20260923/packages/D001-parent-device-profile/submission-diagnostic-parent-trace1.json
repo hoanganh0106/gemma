@@ -1,0 +1,12 @@
+{
+  "package": "D001-parent-device-profile",
+  "label": "diagnostic-parent-trace1",
+  "diagnostic": true,
+  "binary_sha256": "3934741ee47da5693343c7733204486b33f543e1f2bcbc939924195be8e2d091",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 79540 (diagnostic-parent-trace1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 79540
+}

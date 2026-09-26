@@ -1,0 +1,5 @@
+   Compiling furiosa-opt-gemma4 v0.1.0 (/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P001-direct-vrf)
+   Compiling furiosa_opt_gemma4::ops::sliding_project_qkv
+   Compiling furiosa_opt_gemma4::ops::sliding_attention_output
+   Compiling furiosa_opt_gemma4::ops::decoder_feedforward
+    Finished `release` profile [optimized] target(s) in 2m 16s

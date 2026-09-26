@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P158-P005-plus-P109-weight-order/arena-94410.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    80130,
+    37607,
+    216168
+  ],
+  "samples": [
+    [
+      85920,
+      80130,
+      79860
+    ],
+    [
+      37835,
+      37607,
+      37598
+    ],
+    [
+      218597,
+      216168,
+      215992
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.321770770210538
+}

@@ -1,0 +1,12 @@
+{
+  "package": "P209-final-order-rms-scale-view",
+  "label": "p209-rms-scale-view-20260926",
+  "diagnostic": false,
+  "binary_sha256": "bb671de725119ab6cd2a19e0b879045b90ee6394ea59a5047d15fa3cf0afce81",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 102190 (p209-rms-scale-view-20260926)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 102190
+}

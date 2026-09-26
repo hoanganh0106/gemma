@@ -1,0 +1,13 @@
+{
+  "id": 91914,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p041-control-for-p078-a1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-25T03:14:00Z",
+  "started_at": "2026-09-25T03:16:02Z",
+  "finished_at": "2026-09-25T03:16:08Z",
+  "duration_sec": 6.58086169,
+  "exit_code": 0,
+  "device_id": null
+}

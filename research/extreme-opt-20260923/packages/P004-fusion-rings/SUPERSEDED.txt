@@ -1,0 +1,1 @@
+Superseded before build by P005: p15 K1 + fixed RMS ring16 K2 + post-only fixed RMS ring8 K3. Avoid testing a statically dominated intermediate package.

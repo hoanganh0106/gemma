@@ -1,0 +1,30 @@
+{
+  "log": "packages/P001-direct-vrf/arena-78286.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    96059,
+    44271,
+    219670
+  ],
+  "samples": [
+    [
+      98246,
+      92068,
+      96059
+    ],
+    [
+      46226,
+      44271,
+      44252
+    ],
+    [
+      223251,
+      219670,
+      219381
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 7.379463346950942
+}

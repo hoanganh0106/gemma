@@ -1,0 +1,30 @@
+{
+  "log": "research\\extreme-opt-20260923\\packages\\P005-K1-081-K2K3-P005-final\\arena-79308.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    80166,
+    40347,
+    215456
+  ],
+  "samples": [
+    [
+      84582,
+      79368,
+      80166
+    ],
+    [
+      40671,
+      40090,
+      40347
+    ],
+    [
+      219049,
+      215341,
+      215456
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.136684487991387
+}

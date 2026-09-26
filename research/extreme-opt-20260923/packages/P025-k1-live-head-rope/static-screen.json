@@ -1,0 +1,16 @@
+{
+  "package": "P025-k1-live-head-rope",
+  "parent": "P005-K1-081-K2K3-P005-final",
+  "changed": {
+    "src/device/sliding/qkv69382.rs": {
+      "parent": "de2d84a4d582861bc08b2758e3a380e5e397ada9db9e21998da32f6a7103f2bd",
+      "candidate": "c057126fb50b5d0ec36d1a06cbddd18fa1c2c97e3654aa93c3fad23639cac740"
+    }
+  },
+  "makespan": 41075,
+  "instruction_count": 131,
+  "schedule_sha256": "56ea4a38f7e9b1dad4478822ae99dba41e98bbdd8915bfe1da4b8c0a5179cf0a",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "correctness": "NOT_YET_RUN",
+  "arena": "NOT_YET_RUN"
+}

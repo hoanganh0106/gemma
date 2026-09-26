@@ -1,0 +1,13 @@
+{
+  "id": 78470,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "extreme-P003-ring-broadcast",
+  "status": "FAILED",
+  "created_at": "2026-09-23T08:06:32Z",
+  "started_at": "2026-09-23T08:09:44Z",
+  "finished_at": "2026-09-23T08:09:54Z",
+  "duration_sec": 9.406287894,
+  "exit_code": 101,
+  "device_id": null
+}

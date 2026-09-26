@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P048-k1-prefetch-kv-on-p047/arena-83473.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    79910,
+    38381,
+    216711
+  ],
+  "samples": [
+    [
+      83743,
+      79910,
+      79192
+    ],
+    [
+      38381,
+      37903,
+      38623
+    ],
+    [
+      218053,
+      216711,
+      216160
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.266113613780139
+}

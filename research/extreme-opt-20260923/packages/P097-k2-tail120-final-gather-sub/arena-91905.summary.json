@@ -1,0 +1,1 @@
+﻿{"log": "research\\extreme-opt-20260923\\packages\\P078-k2-tail120\\arena-91905.log", "valid_full_public_harness": true, "all_checks_pass": true, "diagnostic": false, "pass_count": 15, "medians": [80306, 37916, 216405], "samples": [[82856, 80306, 79316], [37154, 37916, 38012], [219059, 216405, 215329]], "illustrative_score_snapshot_baseline": 8.29000694590783}

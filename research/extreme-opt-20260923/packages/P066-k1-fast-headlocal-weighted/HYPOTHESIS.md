@@ -1,0 +1,1 @@
+P047 isolates the P024 K1 head RMS Main-to-VRF delivery optimization on the immutable P041 base. Only src/device/sliding/qkv69382.rs is replaced by the P024 version. P041 K2 output31.rs, K3 ffn7.rs, ops.rs, fixture, entrypoint, Cargo files, and toolchain are preserved. input_rms_weight remains semantically consumed by normalize_native_input via shared RMSNorm.

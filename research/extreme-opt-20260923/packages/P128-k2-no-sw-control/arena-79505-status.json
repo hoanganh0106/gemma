@@ -1,0 +1,13 @@
+{
+  "id": 79505,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p032-control-a1-after",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T11:40:06Z",
+  "started_at": "2026-09-23T11:40:06Z",
+  "finished_at": "2026-09-23T11:40:13Z",
+  "duration_sec": 6.715146869,
+  "exit_code": 0,
+  "device_id": null
+}

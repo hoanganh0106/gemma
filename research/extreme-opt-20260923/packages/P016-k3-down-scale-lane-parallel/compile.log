@@ -1,0 +1,43 @@
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0599]: no variant, associated function, or constant named `Parallel` found for enum `furiosa_opt_std::prelude::LaneMode` in the current scope
+   --> src/device/shared/ffn7.rs:500:74
+    |
+500 |             .contract_lane::<m![H / 2 % 15 = $len], m![1 # 8]>(LaneMode::Parallel)
+    |                                                                          ^^^^^^^^ variant, associated function, or constant not found in `furiosa_opt_std::prelude::LaneMode`
+...
+543 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 0, 5);
+    |     -------------------------------------------------------------------- in this macro invocation
+    |
+    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no variant, associated function, or constant named `Parallel` found for enum `furiosa_opt_std::prelude::LaneMode` in the current scope
+   --> src/device/shared/ffn7.rs:500:74
+    |
+500 |             .contract_lane::<m![H / 2 % 15 = $len], m![1 # 8]>(LaneMode::Parallel)
+    |                                                                          ^^^^^^^^ variant, associated function, or constant not found in `furiosa_opt_std::prelude::LaneMode`
+...
+544 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 5, 5);
+    |     -------------------------------------------------------------------- in this macro invocation
+    |
+    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no variant, associated function, or constant named `Parallel` found for enum `furiosa_opt_std::prelude::LaneMode` in the current scope
+   --> src/device/shared/ffn7.rs:500:74
+    |
+500 |             .contract_lane::<m![H / 2 % 15 = $len], m![1 # 8]>(LaneMode::Parallel)
+    |                                                                          ^^^^^^^^ variant, associated function, or constant not found in `furiosa_opt_std::prelude::LaneMode`
+...
+545 |     down_tile!(device, down_weight_packed, x_trf, down_s, partial, 10, 5);
+    |     --------------------------------------------------------------------- in this macro invocation
+    |
+    = note: this error originates in the macro `down_tile` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `furiosa-opt-gemma4` (lib) due to 3 previous errors; 1 warning emitted

@@ -1,0 +1,1 @@
+Preserve all runtime input, contraction arithmetic, BF16 boundary and head ownership. Change only the weight-row stripe and its matching inverse InterTranspose. No row is dropped or duplicated in output. P030 demonstrated hardware sensitivity to row ownership despite a near-neutral static model; this probe tests a narrower DMA distribution change. Mode: kv

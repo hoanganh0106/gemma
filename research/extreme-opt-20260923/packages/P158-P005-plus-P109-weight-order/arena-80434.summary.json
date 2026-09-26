@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final/arena-80434.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    80058,
+    39782,
+    216863
+  ],
+  "samples": [
+    [
+      86090,
+      80058,
+      80009
+    ],
+    [
+      40427,
+      38877,
+      39782
+    ],
+    [
+      218741,
+      216863,
+      215931
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.160972056147546
+}

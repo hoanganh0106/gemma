@@ -1,0 +1,30 @@
+{
+  "log": "research/extreme-opt-20260923/packages/P041-k2-direct-tail-dma/arena-80435.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    79542,
+    38118,
+    216540
+  ],
+  "samples": [
+    [
+      84110,
+      79429,
+      79542
+    ],
+    [
+      38118,
+      37805,
+      38490
+    ],
+    [
+      218523,
+      216331,
+      216540
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.300022049834672
+}

@@ -1,0 +1,12 @@
+{
+  "package": "P036-k2-row60-stream",
+  "label": "p036-row60-a1",
+  "diagnostic": false,
+  "binary_sha256": "f99943861d50e539e906b2848eb0e66b32e4f8e5600e55ef17f7c3fdc988199c",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 80312 (p036-row60-a1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 80312
+}

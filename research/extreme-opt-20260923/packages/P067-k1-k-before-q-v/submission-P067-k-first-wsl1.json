@@ -1,0 +1,12 @@
+{
+  "package": "P067-k1-k-before-q-v",
+  "label": "P067-k-first-wsl1",
+  "diagnostic": false,
+  "binary_sha256": "abeea0b2d4145c2c9e9c4d6bfaffc022f33afcdd347143c503277a1208b07e4d",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 85289 (P067-k-first-wsl1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 85289
+}

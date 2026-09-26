@@ -1,0 +1,12 @@
+{
+  "package": "P051-k1-direct-rope-broadcast-on-p047",
+  "label": "P051-direct-rope-broadcast-r2",
+  "diagnostic": false,
+  "binary_sha256": "57d55ad021a53aec859adf8e13777b1f49882226ab728877dfb9d114d6d88671",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 83731 (P051-direct-rope-broadcast-r2)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 83731
+}

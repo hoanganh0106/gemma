@@ -1,0 +1,12 @@
+{
+  "package": "P200-residual-explicit-view",
+  "label": "p200-residual-explicit-20260925",
+  "diagnostic": false,
+  "binary_sha256": "3f6fdff56f781322509d62172ceba6707a66e7f338ba6fb02eb6e5fd36572e84",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 97244 (p200-residual-explicit-20260925)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 97244
+}

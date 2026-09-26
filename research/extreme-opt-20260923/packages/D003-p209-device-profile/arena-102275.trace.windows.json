@@ -1,0 +1,678 @@
+{
+  "source": "research/extreme-opt-20260923/packages/D003-p209-device-profile/arena-102275.trace.txt",
+  "diagnostic": true,
+  "rows": [
+    {
+      "run": 0,
+      "cluster": 0,
+      "task_cycles": 38654,
+      "dominant_dma": 25440,
+      "before_dma": 1938,
+      "after_dma": 11276,
+      "post_dma_spans": [
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2,
+          "end": 3411,
+          "duration": 3409
+        },
+        {
+          "name": "DMA",
+          "begin": 9,
+          "end": 2141,
+          "duration": 2132
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2143,
+          "end": 2833,
+          "duration": 690
+        },
+        {
+          "name": "DMA",
+          "begin": 2151,
+          "end": 3318,
+          "duration": 1167
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 3320,
+          "end": 4376,
+          "duration": 1056
+        },
+        {
+          "name": "DMA",
+          "begin": 3413,
+          "end": 4552,
+          "duration": 1139
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4377,
+          "end": 5182,
+          "duration": 805
+        },
+        {
+          "name": "DMA",
+          "begin": 4391,
+          "end": 5652,
+          "duration": 1261
+        },
+        {
+          "name": "Cluster",
+          "begin": 4795,
+          "end": 7279,
+          "duration": 2484
+        },
+        {
+          "name": "Cluster",
+          "begin": 5654,
+          "end": 9490,
+          "duration": 3836
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 5656,
+          "end": 7685,
+          "duration": 2029
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7280,
+          "end": 7849,
+          "duration": 569
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7850,
+          "end": 8555,
+          "duration": 705
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8556,
+          "end": 8971,
+          "duration": 415
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8973,
+          "end": 9489,
+          "duration": 516
+        },
+        {
+          "name": "DMA",
+          "begin": 9491,
+          "end": 10362,
+          "duration": 871
+        },
+        {
+          "name": "Cluster",
+          "begin": 10364,
+          "end": 11273,
+          "duration": 909
+        }
+      ]
+    },
+    {
+      "run": 0,
+      "cluster": 1,
+      "task_cycles": 38114,
+      "dominant_dma": 25334,
+      "before_dma": 1874,
+      "after_dma": 10906,
+      "post_dma_spans": [
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2,
+          "end": 3413,
+          "duration": 3411
+        },
+        {
+          "name": "DMA",
+          "begin": 9,
+          "end": 172,
+          "duration": 163
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 174,
+          "end": 883,
+          "duration": 709
+        },
+        {
+          "name": "DMA",
+          "begin": 182,
+          "end": 379,
+          "duration": 197
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 885,
+          "end": 4116,
+          "duration": 3231
+        },
+        {
+          "name": "DMA",
+          "begin": 3415,
+          "end": 4618,
+          "duration": 1203
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4117,
+          "end": 4918,
+          "duration": 801
+        },
+        {
+          "name": "DMA",
+          "begin": 4131,
+          "end": 4622,
+          "duration": 491
+        },
+        {
+          "name": "Cluster",
+          "begin": 4621,
+          "end": 6787,
+          "duration": 2166
+        },
+        {
+          "name": "Cluster",
+          "begin": 4920,
+          "end": 9418,
+          "duration": 4498
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4922,
+          "end": 7189,
+          "duration": 2267
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 6788,
+          "end": 7355,
+          "duration": 567
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7356,
+          "end": 8123,
+          "duration": 767
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8124,
+          "end": 8537,
+          "duration": 413
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8539,
+          "end": 9053,
+          "duration": 514
+        },
+        {
+          "name": "DMA",
+          "begin": 9419,
+          "end": 9582,
+          "duration": 163
+        },
+        {
+          "name": "Cluster",
+          "begin": 9584,
+          "end": 10903,
+          "duration": 1319
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "cluster": 0,
+      "task_cycles": 37933,
+      "dominant_dma": 25804,
+      "before_dma": 2280,
+      "after_dma": 9849,
+      "post_dma_spans": [
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2,
+          "end": 3415,
+          "duration": 3413
+        },
+        {
+          "name": "DMA",
+          "begin": 9,
+          "end": 1613,
+          "duration": 1604
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 1615,
+          "end": 2373,
+          "duration": 758
+        },
+        {
+          "name": "DMA",
+          "begin": 1623,
+          "end": 2914,
+          "duration": 1291
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2916,
+          "end": 4110,
+          "duration": 1194
+        },
+        {
+          "name": "DMA",
+          "begin": 3417,
+          "end": 4562,
+          "duration": 1145
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4111,
+          "end": 4916,
+          "duration": 805
+        },
+        {
+          "name": "DMA",
+          "begin": 4125,
+          "end": 5264,
+          "duration": 1139
+        },
+        {
+          "name": "Cluster",
+          "begin": 4564,
+          "end": 6759,
+          "duration": 2195
+        },
+        {
+          "name": "Cluster",
+          "begin": 5266,
+          "end": 8970,
+          "duration": 3704
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 5268,
+          "end": 7165,
+          "duration": 1897
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 6760,
+          "end": 7329,
+          "duration": 569
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7330,
+          "end": 8037,
+          "duration": 707
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8038,
+          "end": 8451,
+          "duration": 413
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8453,
+          "end": 8969,
+          "duration": 516
+        },
+        {
+          "name": "DMA",
+          "begin": 8971,
+          "end": 9842,
+          "duration": 871
+        },
+        {
+          "name": "Cluster",
+          "begin": 9844,
+          "end": 9846,
+          "duration": 2
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "cluster": 1,
+      "task_cycles": 37721,
+      "dominant_dma": 25526,
+      "before_dma": 1869,
+      "after_dma": 10326,
+      "post_dma_spans": [
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2,
+          "end": 3409,
+          "duration": 3407
+        },
+        {
+          "name": "DMA",
+          "begin": 9,
+          "end": 172,
+          "duration": 163
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 174,
+          "end": 879,
+          "duration": 705
+        },
+        {
+          "name": "DMA",
+          "begin": 182,
+          "end": 365,
+          "duration": 183
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 881,
+          "end": 4116,
+          "duration": 3235
+        },
+        {
+          "name": "DMA",
+          "begin": 3411,
+          "end": 4612,
+          "duration": 1201
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4117,
+          "end": 4914,
+          "duration": 797
+        },
+        {
+          "name": "DMA",
+          "begin": 4131,
+          "end": 4618,
+          "duration": 487
+        },
+        {
+          "name": "Cluster",
+          "begin": 4614,
+          "end": 6545,
+          "duration": 1931
+        },
+        {
+          "name": "Cluster",
+          "begin": 4916,
+          "end": 8752,
+          "duration": 3836
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4918,
+          "end": 6947,
+          "duration": 2029
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 6546,
+          "end": 7113,
+          "duration": 567
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7114,
+          "end": 7821,
+          "duration": 707
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7822,
+          "end": 8235,
+          "duration": 413
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8237,
+          "end": 8751,
+          "duration": 514
+        },
+        {
+          "name": "DMA",
+          "begin": 8753,
+          "end": 8916,
+          "duration": 163
+        },
+        {
+          "name": "Cluster",
+          "begin": 8918,
+          "end": 10323,
+          "duration": 1405
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "cluster": 0,
+      "task_cycles": 38728,
+      "dominant_dma": 25344,
+      "before_dma": 2188,
+      "after_dma": 11196,
+      "post_dma_spans": [
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2,
+          "end": 3405,
+          "duration": 3403
+        },
+        {
+          "name": "DMA",
+          "begin": 9,
+          "end": 1627,
+          "duration": 1618
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 1629,
+          "end": 2387,
+          "duration": 758
+        },
+        {
+          "name": "DMA",
+          "begin": 1637,
+          "end": 2920,
+          "duration": 1283
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2922,
+          "end": 4100,
+          "duration": 1178
+        },
+        {
+          "name": "DMA",
+          "begin": 3407,
+          "end": 4552,
+          "duration": 1145
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4101,
+          "end": 4906,
+          "duration": 805
+        },
+        {
+          "name": "DMA",
+          "begin": 4115,
+          "end": 5244,
+          "duration": 1129
+        },
+        {
+          "name": "Cluster",
+          "begin": 4554,
+          "end": 7073,
+          "duration": 2519
+        },
+        {
+          "name": "Cluster",
+          "begin": 5246,
+          "end": 9282,
+          "duration": 4036
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 5248,
+          "end": 7479,
+          "duration": 2231
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7074,
+          "end": 7643,
+          "duration": 569
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7644,
+          "end": 8349,
+          "duration": 705
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8350,
+          "end": 8763,
+          "duration": 413
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8765,
+          "end": 9281,
+          "duration": 516
+        },
+        {
+          "name": "DMA",
+          "begin": 9283,
+          "end": 10154,
+          "duration": 871
+        },
+        {
+          "name": "Cluster",
+          "begin": 10156,
+          "end": 11193,
+          "duration": 1037
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "cluster": 1,
+      "task_cycles": 36663,
+      "dominant_dma": 24944,
+      "before_dma": 1981,
+      "after_dma": 9738,
+      "post_dma_spans": [
+        {
+          "name": "Renegade::TuExec",
+          "begin": 2,
+          "end": 3407,
+          "duration": 3405
+        },
+        {
+          "name": "DMA",
+          "begin": 9,
+          "end": 174,
+          "duration": 165
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 176,
+          "end": 879,
+          "duration": 703
+        },
+        {
+          "name": "DMA",
+          "begin": 184,
+          "end": 365,
+          "duration": 181
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 881,
+          "end": 4114,
+          "duration": 3233
+        },
+        {
+          "name": "DMA",
+          "begin": 3409,
+          "end": 4612,
+          "duration": 1203
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4115,
+          "end": 4916,
+          "duration": 801
+        },
+        {
+          "name": "DMA",
+          "begin": 4129,
+          "end": 4614,
+          "duration": 485
+        },
+        {
+          "name": "Cluster",
+          "begin": 4618,
+          "end": 4930,
+          "duration": 312
+        },
+        {
+          "name": "Cluster",
+          "begin": 4918,
+          "end": 8554,
+          "duration": 3636
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4920,
+          "end": 5351,
+          "duration": 431
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 4931,
+          "end": 5499,
+          "duration": 568
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 5500,
+          "end": 7623,
+          "duration": 2123
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 7624,
+          "end": 8037,
+          "duration": 413
+        },
+        {
+          "name": "Renegade::TuExec",
+          "begin": 8039,
+          "end": 8553,
+          "duration": 514
+        },
+        {
+          "name": "DMA",
+          "begin": 8555,
+          "end": 8718,
+          "duration": 163
+        },
+        {
+          "name": "Cluster",
+          "begin": 8720,
+          "end": 9735,
+          "duration": 1015
+        }
+      ]
+    }
+  ]
+}

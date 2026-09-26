@@ -1,0 +1,1 @@
+Build invalid: shared target returned P001 executable as fresh=true; never submitted. Rebuild forces clean of only this crate and retains flock through binary freeze.

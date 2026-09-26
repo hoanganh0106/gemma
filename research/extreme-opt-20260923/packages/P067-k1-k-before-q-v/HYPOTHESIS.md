@@ -1,0 +1,1 @@
+P067 is a P059-derived K1 scheduling probe. It preserves P059 math and rule-correct input_rms_weight consumption, but splits the existing KV projection wrapper so sliding_project_qkv issues projection work in source order K -> Q -> V. The experiment tests whether starting the smaller K path before the long Q path improves Furiosa hardware overlap without changing Q/K/V results.

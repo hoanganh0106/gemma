@@ -1,0 +1,11 @@
+{
+  "package": "P032-k1-kv-stripe4",
+  "label": "p032-candidate-b1",
+  "binary_sha256": "c96dfca6d380ed87855453c89bc6e4f42ee65b0e16246fe05732fbe1b3d4d3ca",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 79502 (p032-candidate-b1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 79502
+}

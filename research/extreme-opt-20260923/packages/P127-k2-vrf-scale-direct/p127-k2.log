@@ -1,0 +1,65 @@
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/device/sliding/output31.rs:182:16
+    |
+182 |         .begin(scale.view())
+    |          ----- ^^^^^^^^^^^^ expected `DmTensorView<'_, _, _, _, _, _>`, found `TensorView<'_, f32, Pair<..., ...>>`
+    |          |
+    |          arguments to this method are incorrect
+    |
+    = note: expected struct `furiosa_opt_std::prelude::DmTensorView<'_, _, _, _, _, _>`
+               found struct `TensorView<'_, f32, Pair<Broadcast<1>, Pair<..., ...>>>`
+note: method defined here
+   --> /home/hoanganh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/furiosa-opt-std-0.8.1/src/context.rs:86:12
+    |
+ 86 |     pub fn begin<'l, D: MaterializableScalar, Chip: M, Cluster: M, Slice: M, Element: M>(
+    |            ^^^^^
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P127-k2-vrf-scale-direct/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-7457959735635091169.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0599]: the method `vector_init` exists for struct `TuTensor<'_, Tu::Sub, PositionBegin, _, _, _, _, ..., _>`, but its trait bounds were not satisfied
+   --> src/device/sliding/output31.rs:183:10
+    |
+180 |       let sw: TailVrf = device
+    |  _______________________-
+181 | |         .sub
+182 | |         .begin(scale.view())
+183 | |         .vector_init()
+    | |         -^^^^^^^^^^^ method cannot be called due to unsatisfied trait bounds
+    | |_________|
+    |
+    |
+   ::: /home/hoanganh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/furiosa-opt-std-0.8.1/src/tensor/tu.rs:33:1
+    |
+ 33 |   pub struct PositionBegin;
+    |   ------------------------ doesn't satisfy `_: CanApplyVectorInit`
+    |
+    = note: the following trait bounds were not satisfied:
+            `furiosa_opt_std::prelude::PositionBegin: furiosa_opt_std::prelude::CanApplyVectorInit`
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P127-k2-vrf-scale-direct/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-15847477030475167530.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `furiosa-opt-gemma4` (lib) due to 2 previous errors; 3 warnings emitted

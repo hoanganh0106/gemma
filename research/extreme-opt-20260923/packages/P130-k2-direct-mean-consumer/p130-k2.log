@@ -1,0 +1,88 @@
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/device/sliding/output31.rs:218:63
+    |
+218 |       let mean: DmTensor<f32, Chip, Vc, m![1 # 8], m![1 # 8]> = device
+    |  _______________---------------------------------------------___^
+    | |               |
+    | |               expected due to this
+219 | |         .main.begin(partial.view())
+220 | |         .fetch::<m![1], m![1 # 8]>()
+221 | |         .collect::<m![1], m![1 # 8]>()
+...   |
+226 | |         .vector_widen_pad::<m![1 # 8]>()
+227 | |         .vector_final().commit_trim::<m![1 # 8]>().commit();
+    | |___________________________________________________________^ expected `DmTensor<f32, ..., ..., ..., ...>`, found `DmTensor<f32, Broadcast<1>, ..., ..., _>`
+    |
+    = note: expected struct `DmTensor<f32, Broadcast<1>, ..., ..., ...>`
+               found struct `DmTensor<f32, Broadcast<1>, Padding<..., ..., Top>, ..., _>`
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P130-k2-direct-mean-consumer/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-7584088872979067683.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0599]: the method `commit` exists for struct `TuTensor<'_, Main, ..., f32, ..., ..., ..., ..., ...>`, but its trait bounds were not satisfied
+   --> src/device/sliding/output31.rs:241:10
+    |
+228 |       let inv_rms: DmTensor<f32, Chip, Vc, m![1 # 8], m![1 # 8]> = device
+    |  __________________________________________________________________-
+229 | |         .main
+230 | |         .begin(mean.view())
+231 | |         .fetch::<m![1], m![1 # 8]>()
+...   |
+240 | |         .vector_final()
+241 | |         .commit();
+    | |_________-^^^^^^
+    |
+   ::: /home/hoanganh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/furiosa-opt-std-0.8.1/src/engine/vector/tensor/mod.rs:78:1
+    |
+ 78 |   pub struct PositionVectorFinal;
+    |   ------------------------------ doesn't satisfy `_: CanApplyCommit`
+    |
+    = note: the following trait bounds were not satisfied:
+            `furiosa_opt_std::prelude::PositionVectorFinal: furiosa_opt_std::prelude::CanApplyCommit`
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P130-k2-direct-mean-consumer/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-5877425145170204242.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0308]: mismatched types
+   --> src/device/sliding/output31.rs:242:66
+    |
+242 |       let inv_rms_vrf: VrfTensor<f32, Chip, Vc, Tail, m![1 # 8]> = device
+    |  ______________________-----------------------------------------___^
+    | |                      |
+    | |                      expected due to this
+243 | |         .main
+244 | |         .begin(inv_rms.view())
+245 | |         .fetch::<m![1], m![1 # 8]>()
+246 | |         .switch::<m![1 # 8, Vr], m![H / 120]>(SwitchConfig::Broadcast1 { slice1: 32, slice0: 1 })
+247 | |         .collect::<m![H / 120], m![1 # 8]>()
+248 | |         .to_vrf(&mut device.sub);
+    | |________________________________^ expected `VrfTensor<f32, ..., ..., ..., ...>`, found `VrfTensor<_, _, _, Pair<..., ...>, _>`
+    |
+    = note: expected struct `VrfTensor<f32, Broadcast<1>, ..., ..., ...>`
+               found struct `furiosa_opt_std::prelude::VrfTensor<_, _, _, furiosa_opt_std::prelude::Pair<_, furiosa_opt_std::prelude::Symbol<device::sliding::output31::Vr>>, _>`
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P130-k2-direct-mean-consumer/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-4119343604832756027.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `furiosa-opt-gemma4` (lib) due to 3 previous errors; 3 warnings emitted

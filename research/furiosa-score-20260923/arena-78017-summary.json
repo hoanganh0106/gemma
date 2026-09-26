@@ -1,0 +1,37 @@
+{
+  "job": 78017,
+  "correctness_output_pass_count": 15,
+  "kernels": {
+    "K1": {
+      "median": 91270,
+      "samples": [
+        102213,
+        90703,
+        91270
+      ]
+    },
+    "K2": {
+      "median": 44471,
+      "samples": [
+        44471,
+        44409,
+        44622
+      ]
+    },
+    "K3": {
+      "median": 220925,
+      "samples": [
+        224052,
+        220925,
+        219896
+      ]
+    }
+  },
+  "observed_api_baseline": [
+    250514,
+    404633,
+    3703473
+  ],
+  "illustrative_score": 7.480849044203127,
+  "official_moa_submission": false
+}

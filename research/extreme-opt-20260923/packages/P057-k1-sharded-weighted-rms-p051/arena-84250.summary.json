@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P057-k1-sharded-weighted-rms-p051/arena-84250.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    78633,
+    37871,
+    216542
+  ],
+  "samples": [
+    [
+      83182,
+      77526,
+      78633
+    ],
+    [
+      38054,
+      37830,
+      37871
+    ],
+    [
+      221416,
+      216098,
+      216542
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.349931393108353
+}

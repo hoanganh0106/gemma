@@ -1,0 +1,13 @@
+{
+  "id": 83635,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P047-control-after-P050-20260923",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T02:18:36Z",
+  "started_at": "2026-09-24T02:18:36Z",
+  "finished_at": "2026-09-24T02:18:43Z",
+  "duration_sec": 6.652906473,
+  "exit_code": 0,
+  "device_id": null
+}

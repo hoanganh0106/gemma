@@ -1,0 +1,16 @@
+{
+  "package": "P030-k1-contiguous-projection",
+  "parent": "P005-K1-081-K2K3-P005-final",
+  "changed": {
+    "src/device/sliding/qkv69382.rs": {
+      "parent": "de2d84a4d582861bc08b2758e3a380e5e397ada9db9e21998da32f6a7103f2bd",
+      "candidate": "02c21bf30b3e75c0227e48c6514d960f9408cf3fb60efa1b1a4cbeb1573fa4ad"
+    }
+  },
+  "makespan": 42372,
+  "instruction_count": 186,
+  "schedule_sha256": "94c016d3a16ec75b2db8afd3af2b1ebc3a660dc10bfbd405f02044287d39cbd2",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "correctness": "NOT_YET_RUN",
+  "arena": "NOT_YET_RUN"
+}

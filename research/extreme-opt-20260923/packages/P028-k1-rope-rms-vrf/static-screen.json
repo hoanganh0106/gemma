@@ -1,0 +1,16 @@
+{
+  "package": "P028-k1-rope-rms-vrf",
+  "parent": "P005-K1-081-K2K3-P005-final",
+  "changed": {
+    "src/device/sliding/qkv69382.rs": {
+      "parent": "de2d84a4d582861bc08b2758e3a380e5e397ada9db9e21998da32f6a7103f2bd",
+      "candidate": "5dc7331b87b9358e13782e5f51b617d873209c0b0f06ce2e8e4021ba7b948e59"
+    }
+  },
+  "makespan": 40314,
+  "instruction_count": 128,
+  "schedule_sha256": "5e3cfca5a35cbe12c60b4a9eed066c465c5b4cd68bef168b8c397b0110a9888a",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "correctness": "NOT_YET_RUN",
+  "arena": "NOT_YET_RUN"
+}

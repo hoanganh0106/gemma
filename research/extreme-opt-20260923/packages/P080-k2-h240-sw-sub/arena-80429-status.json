@@ -1,0 +1,13 @@
+{
+  "id": 80429,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p041-direct-tail-a1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T15:04:43Z",
+  "started_at": "2026-09-23T15:04:43Z",
+  "finished_at": "2026-09-23T15:04:50Z",
+  "duration_sec": 6.704425905,
+  "exit_code": 0,
+  "device_id": null
+}

@@ -1,0 +1,2 @@
+021b9009886682add70e20ee3481bf5bcd9711b4b3535d1cba0821c46a37a39d  research/furiosa-score-20260923/test_runtime
+338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359  research/furiosa-score-20260923/fixtures.safetensors

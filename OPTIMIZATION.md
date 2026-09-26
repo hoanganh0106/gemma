@@ -3,8 +3,9 @@
 This guide contains the original kernel-optimization workflow for Stage 1 of the
 competition. It explains how to inspect a compiled schedule, find a bottleneck, change a
 kernel, and compare results. Stage 1 grading is performed with
-[`tests/test_kernels.rs`](tests/test_kernels.rs); the schedule is a development aid, not
-the grading authority.
+[`src/bin/test_kernels.rs`](src/bin/test_kernels.rs); each kernel uses the median of three
+independently seeded input cases. The schedule is a development aid, not the grading
+authority.
 
 ## 1. Dump a schedule
 
