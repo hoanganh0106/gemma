@@ -1,0 +1,13 @@
+{
+  "id": 83724,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P047-control-83720",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T02:29:31Z",
+  "started_at": "2026-09-24T02:30:07Z",
+  "finished_at": "2026-09-24T02:30:14Z",
+  "duration_sec": 6.703440291,
+  "exit_code": 0,
+  "device_id": null
+}

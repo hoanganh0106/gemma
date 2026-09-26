@@ -1,0 +1,12 @@
+{
+  "package": "P041-k2-direct-tail-dma",
+  "label": "p041-direct-tail-a1",
+  "diagnostic": false,
+  "binary_sha256": "5c37d4a72abc88b88c4d4196d9f95c53d3f8a12ea3a4ba35dd8ee02d85e90d35",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 80429 (p041-direct-tail-a1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 80429
+}

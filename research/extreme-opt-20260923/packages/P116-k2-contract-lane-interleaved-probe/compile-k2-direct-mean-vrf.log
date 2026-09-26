@@ -1,0 +1,60 @@
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/device/sliding/output31.rs:232:16
+    |
+232 |         .begin(mean.view())
+    |          ----- ^^^^^^^^^^^ expected `DmTensorView<'_, _, _, _, _, _>`, found `TensorView<'_, f32, Pair<..., ...>>`
+    |          |
+    |          arguments to this method are incorrect
+    |
+    = note: expected struct `furiosa_opt_std::prelude::DmTensorView<'_, _, _, _, _, _>`
+               found struct `TensorView<'_, f32, Pair<Broadcast<1>, Pair<..., ...>>>`
+note: method defined here
+   --> /home/hoanganh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/furiosa-opt-std-0.8.1/src/context.rs:86:12
+    |
+ 86 |     pub fn begin<'l, D: MaterializableScalar, Chip: M, Cluster: M, Slice: M, Element: M>(
+    |            ^^^^^
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P078-k2-tail120/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-1079173078335874690.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0061]: this method takes 0 arguments but 1 argument was supplied
+   --> src/device/sliding/output31.rs:243:10
+    |
+243 |         .to_vrf(&mut device.sub);
+    |          ^^^^^^ --------------- unexpected argument of type `&mut furiosa_opt_std::prelude::TuContext<furiosa_opt_std::prelude::Tu::Sub>`
+    |
+note: method defined here
+   --> /home/hoanganh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/furiosa-opt-std-0.8.1/src/engine/collect.rs:96:12
+    |
+ 96 |     pub fn to_vrf<Element: M>(self) -> VrfTensor<D, Chip, Cluster, Slice, Element, B> {
+    |            ^^^^^^
+help: remove the extra argument
+    |
+243 -         .to_vrf(&mut device.sub);
+243 +         .to_vrf();
+    |
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0308.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `furiosa-opt-gemma4` (lib) due to 2 previous errors; 3 warnings emitted

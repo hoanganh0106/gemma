@@ -1,0 +1,11 @@
+{
+  "package": "P030-k1-contiguous-projection",
+  "label": "p030-candidate-b1",
+  "binary_sha256": "c2258209cbb3fdc5bf477294c9a0b680ba344e6df1a2b3fa4e9d99673f2d36f4",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 79451 (p030-candidate-b1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 79451
+}

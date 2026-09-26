@@ -1,0 +1,12 @@
+{
+  "package": "P210-k2-split60-canonical-z",
+  "label": "p210-split60-canonical-z-20260926",
+  "diagnostic": false,
+  "binary_sha256": "275096c9f8811297cc8a4d8d7eeacc27e18921bd94a320d86937d5b56e9885f4",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 102080 (p210-split60-canonical-z-20260926)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 102080
+}

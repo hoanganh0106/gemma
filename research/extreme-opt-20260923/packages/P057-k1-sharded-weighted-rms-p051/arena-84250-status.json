@@ -1,0 +1,13 @@
+{
+  "id": 84250,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P057-control-a2",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T03:41:27Z",
+  "started_at": "2026-09-24T03:41:27Z",
+  "finished_at": "2026-09-24T03:41:34Z",
+  "duration_sec": 6.647392279,
+  "exit_code": 0,
+  "device_id": null
+}

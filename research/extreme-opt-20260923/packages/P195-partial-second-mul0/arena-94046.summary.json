@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P126-P005-plus-K2-z-reshape/arena-94046.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    80720,
+    40613,
+    216801
+  ],
+  "samples": [
+    [
+      83188,
+      78834,
+      80720
+    ],
+    [
+      40613,
+      39466,
+      41049
+    ],
+    [
+      218071,
+      216801,
+      216268
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.083479214470524
+}

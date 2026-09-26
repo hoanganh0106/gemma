@@ -1,0 +1,13 @@
+{
+  "id": 79402,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p028-candidate-b1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T11:22:32Z",
+  "started_at": "2026-09-23T11:22:32Z",
+  "finished_at": "2026-09-23T11:22:39Z",
+  "duration_sec": 6.728013737,
+  "exit_code": 0,
+  "device_id": null
+}

@@ -1,0 +1,11 @@
+{
+  "package": "P028-k1-rope-rms-vrf",
+  "label": "p028-candidate-b2",
+  "binary_sha256": "db39b1943d430edd1e36703986cf3db1a5eda0728b379d623ac5204764eeaa8c",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 79424 (p028-candidate-b2)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 79424
+}

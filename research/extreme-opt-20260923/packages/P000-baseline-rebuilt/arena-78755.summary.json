@@ -1,0 +1,30 @@
+{
+  "log": "arena-78755.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    91306,
+    45008,
+    221885
+  ],
+  "samples": [
+    [
+      101635,
+      91039,
+      91306
+    ],
+    [
+      45533,
+      44826,
+      45008
+    ],
+    [
+      222568,
+      221885,
+      220243
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 7.43923884480279
+}

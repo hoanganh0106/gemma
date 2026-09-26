@@ -1,0 +1,13 @@
+{
+  "id": 84441,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p063-direct-weighted-f8-20260923",
+  "status": "FAILED",
+  "created_at": "2026-09-24T04:07:07Z",
+  "started_at": "2026-09-24T04:07:51Z",
+  "finished_at": "2026-09-24T04:07:57Z",
+  "duration_sec": 6.60564814,
+  "exit_code": 1,
+  "device_id": null
+}

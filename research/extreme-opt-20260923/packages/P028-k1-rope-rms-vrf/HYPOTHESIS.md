@@ -1,0 +1,1 @@
+Combine P024 direct head-RMS Main-to-VRF with P025 full-table live-head RoPE. Shared-resource interactions require a new schedule; individual gains are not additive assumptions. All input normalization and projection functions remain unchanged from the canonical parent, except the exact FP32 head-RMS storage path.

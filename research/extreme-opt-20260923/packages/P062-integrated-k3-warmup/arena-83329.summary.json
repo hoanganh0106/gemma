@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P041-k2-direct-tail-dma/arena-83329.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    79914,
+    38140,
+    216460
+  ],
+  "samples": [
+    [
+      83179,
+      79849,
+      79914
+    ],
+    [
+      38140,
+      37856,
+      38394
+    ],
+    [
+      219305,
+      216040,
+      216460
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.286550035215283
+}

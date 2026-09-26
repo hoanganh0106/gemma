@@ -1,0 +1,13 @@
+{
+  "id": 83633,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P050-k1-a010-v-20260923",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T02:18:28Z",
+  "started_at": "2026-09-24T02:18:28Z",
+  "finished_at": "2026-09-24T02:18:34Z",
+  "duration_sec": 6.62492668,
+  "exit_code": 0,
+  "device_id": null
+}

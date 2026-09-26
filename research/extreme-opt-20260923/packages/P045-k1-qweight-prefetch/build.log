@@ -1,0 +1,3 @@
+   Compiling furiosa-opt-gemma4 v0.1.0 (/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P041-k2-direct-tail-dma)
+   Compiling furiosa_opt_gemma4::ops::sliding_attention_output
+    Finished `release` profile [optimized] target(s) in 43.91s

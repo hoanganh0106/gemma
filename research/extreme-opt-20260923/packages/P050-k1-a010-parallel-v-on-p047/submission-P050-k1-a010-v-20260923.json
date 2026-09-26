@@ -1,0 +1,12 @@
+{
+  "package": "P050-k1-a010-parallel-v-on-p047",
+  "label": "P050-k1-a010-v-20260923",
+  "diagnostic": false,
+  "binary_sha256": "fb577ea92907191d5ddf244588524c78c6193eacafb764c7962a62271b3b0150",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 83633 (P050-k1-a010-v-20260923)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 83633
+}

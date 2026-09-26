@@ -1,0 +1,28 @@
+NPU kernel tests -- 3 cases x 3 independently-seeded runs against a precomputed reference, with on-device cycle counts
+
+==> sliding_project_qkv
+[sliding_project_qkv q run0        ] max|Δ|=  0.01562 (   1.23% of expected)  mean|Δ|= 0.001620  within tol=100.00%  -> PASS
+[sliding_project_qkv k run0        ] max|Δ|=  0.03125 (   1.41% of expected)  mean|Δ|= 0.001475  within tol=100.00%  -> PASS
+[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.74% of expected)  mean|Δ|= 0.002110  within tol=100.00%  -> PASS
+[sliding_project_qkv q run1        ] max|Δ|=  0.02344 (   1.25% of expected)  mean|Δ|= 0.001482  within tol=100.00%  -> PASS
+[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   1.28% of expected)  mean|Δ|= 0.001308  within tol=100.00%  -> PASS
+[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001900  within tol=100.00%  -> PASS
+[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   1.23% of expected)  mean|Δ|= 0.001666  within tol=100.00%  -> PASS
+[sliding_project_qkv k run2        ] max|Δ|=  0.01562 (   0.69% of expected)  mean|Δ|= 0.001339  within tol=100.00%  -> PASS
+[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   0.77% of expected)  mean|Δ|= 0.002024  within tol=100.00%  -> PASS
+    median cycles=80228 (of 3 runs: [83824, 80228, 79998])
+
+==> sliding_attention_output
+[sliding_attention_output run0     ] max|Δ|=  6.95312 ( 214.98% of expected)  mean|Δ|= 0.464396  within tol= 25.13%  -> FAIL
+[sliding_attention_output run1     ] max|Δ|=  7.32812 ( 268.00% of expected)  mean|Δ|= 0.476980  within tol= 23.96%  -> FAIL
+[sliding_attention_output run2     ] max|Δ|=  4.85938 ( 154.73% of expected)  mean|Δ|= 0.471644  within tol= 24.56%  -> FAIL
+    median cycles=36973 (of 3 runs: [37505, 36300, 36973])
+
+==> decoder_feedforward
+[decoder_feedforward run0          ] max|Δ|=  0.00781 (   1.20% of expected)  mean|Δ|= 0.000674  within tol=100.00%  -> PASS
+[decoder_feedforward run1          ] max|Δ|=  0.00781 (   1.37% of expected)  mean|Δ|= 0.000961  within tol=100.00%  -> PASS
+[decoder_feedforward run2          ] max|Δ|=  0.01172 (   1.40% of expected)  mean|Δ|= 0.001032  within tol=100.00%  -> PASS
+    median cycles=216758 (of 3 runs: [220399, 216758, 216528])
+
+
+1 of 3 tests failed: sliding_attention_output

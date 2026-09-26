@@ -1,0 +1,146 @@
+{
+  "name": "P005-K1-081-K2K3-P005-final",
+  "diagnostic": false,
+  "command": [
+    "cargo",
+    "furiosa-opt",
+    "build",
+    "--release",
+    "--locked",
+    "--bin",
+    "test_kernels",
+    "--message-format=json"
+  ],
+  "target_dir": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/target",
+  "lock_path": "/tmp/furiosa-extreme-full-build.lock",
+  "forced_crate_rebuild": true,
+  "verified_library_reused_from": null,
+  "artifact": {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final#furiosa-opt-gemma4@0.1.0",
+    "manifest_path": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final/Cargo.toml",
+    "target": {
+      "kind": [
+        "bin"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "test_kernels",
+      "src_path": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final/src/bin/test_kernels.rs",
+      "edition": "2024",
+      "doc": true,
+      "doctest": false,
+      "test": true
+    },
+    "profile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": false
+    },
+    "features": [],
+    "filenames": [
+      "/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/release/test_kernels"
+    ],
+    "executable": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/release/test_kernels",
+    "fresh": false
+  },
+  "library_artifact": {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final#furiosa-opt-gemma4@0.1.0",
+    "manifest_path": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final/Cargo.toml",
+    "target": {
+      "kind": [
+        "lib"
+      ],
+      "crate_types": [
+        "lib"
+      ],
+      "name": "furiosa_opt_gemma4",
+      "src_path": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P005-K1-081-K2K3-P005-final/src/lib.rs",
+      "edition": "2024",
+      "doc": true,
+      "doctest": true,
+      "test": true
+    },
+    "profile": {
+      "opt_level": "3",
+      "debuginfo": 0,
+      "debug_assertions": false,
+      "overflow_checks": false,
+      "test": false
+    },
+    "features": [],
+    "filenames": [
+      "/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/release/deps/libfuriosa_opt_gemma4-b112c9bf9d3ff247.rlib",
+      "/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/release/deps/libfuriosa_opt_gemma4-b112c9bf9d3ff247.rmeta"
+    ],
+    "executable": null,
+    "fresh": false
+  },
+  "source_hashes": {
+    "src/api/handlers.rs": "38eaf021fd7be333e584dc5e7c13b73e9b626b0c025b4c4a4f2858ecba0afc0a",
+    "src/api/mod.rs": "882420d3454ec2afa0c7f4a6b8fa17c27ccad73e87db4d93d4384e02ca2a1a76",
+    "src/api/schema.rs": "a19533ad49747ccfc0c08dd77d5ba172549d0963459786478b014e7fd099947e",
+    "src/api/server.rs": "028b437abff203f719ffc8c3dc3c95fc89fe9baf7ddbe54938b9ccaa0b3dba0d",
+    "src/api/worker.rs": "b318ce97f225b68e57eb625474be17e466d3673013163e75ca40cd48320ee1e2",
+    "src/axes.rs": "a9507011038928391bcae1068ab443a6005140f339ba803e41e0ffb07f7f843a",
+    "src/bin/gemma4.rs": "f116b1b7beb3582361ec5d9eb089856d0a2f2e74fedaa049bcc77467a955c77a",
+    "src/bin/server.rs": "068fe080ed9b9ffef5679c405ae5607f898e9cbf117fb6b3394afdb5073d82fe",
+    "src/bin/test_kernels.rs": "42db4e99ae788020726d530d1cd799e647779b7b9912e593401d6981cffc7516",
+    "src/device/audio/mod.rs": "e8372ab68755945d922cf5ed9bfafcb38b716d2ae9e920a79ec1d2e269ad0b38",
+    "src/device/audio/projection.rs": "c522aa1747df9c9668bb240d972aa4dc692155b15bded95507c5e00594769799",
+    "src/device/full/attention.rs": "2a4ff8586cb87edfe3f5570bf591dad7996d95e9c9e4c940f0238d0e83b094ab",
+    "src/device/full/mod.rs": "527483c00372f446c6b87c9faede58b938035bb80ba957136f3ad8fee0cd5466",
+    "src/device/full/projection.rs": "b000838c0e3e910a513005aa9cdd70ec1372df63150aa069afe17c599182f1e9",
+    "src/device/full/rmsnorm.rs": "f03d05ecab27f749d26e94cace17a232c8ce1d387bb9a348ca9ba74eaf79b89a",
+    "src/device/full/rope.rs": "703139f12976b40ef4a75114df09b751f3a6c8610e19b490f26f9b538f615ba4",
+    "src/device/layout.rs": "d5c03978e575bee22489451493a441bb5601f7769126eddf8bea7d8bd881a1c3",
+    "src/device/mod.rs": "6ad290a49d88482a8a2b8b1655fdc01991ded2cbdc9b96e79d4cfad8dea2f98b",
+    "src/device/qkv/headnorm.rs": "406d55bb45ddf14f6a2cdeb248efa09c360be737e43ebc89a4222510d5de4344",
+    "src/device/qkv/mod.rs": "92ac152263f3f9f1b303c2551367bbda4e0c6721bb3088ead5f5bc481ef2522d",
+    "src/device/qkv/pool.rs": "c9b214df19f926f8c157401150131f089e1f2da6042d8b988f52c9698ba4afd8",
+    "src/device/qkv/proj8.rs": "6424ee7b647dce96c7cb41657830a75bde3e2c57cc743e171663bf6d891f88e0",
+    "src/device/qkv/rope.rs": "e7ffd0cd8650aefcc6809dfc9e7090ee83de5b9fe2f5d61c3c7bef844a5638be",
+    "src/device/qkv/xnorm8.rs": "6ac4ec4f0fcd8d4ff0f029f56a568b7bd665ad9c382ca674f55101f13afe6950",
+    "src/device/shared/ffn7.rs": "b75a1f551b4e299e29dc4723c021f171673febb6503ada6a163e11b6c89b1211",
+    "src/device/shared/lm_head.rs": "98fe14525460ea811452a97f38e543cdd37231b6269750b69a39b59a8aaa135e",
+    "src/device/shared/mlp.rs": "1c4205773beae3ac8a7ea8644e52a8c24300ac4f69a1937aef66f98f4499c4e7",
+    "src/device/shared/mod.rs": "b92d5551e6796e82352e0ce0afac610c84c6ee2a685c731d3d0752d10f78a2a9",
+    "src/device/shared/residual.rs": "9f765da42c5981d22be72a700d17d328091a7953a7789cd58c02b741ec1efaea",
+    "src/device/shared/rmsnorm.rs": "c986bfe8abd776e891b69252c091eecbb61482a554346b51c7836c52d3d67564",
+    "src/device/sliding/attention.rs": "3e02a8a2118d27bc10c674285d200fa22ea93c46f4e9e7245d5fcea2a624c33e",
+    "src/device/sliding/mod.rs": "420cc31c32f4d5cfd7e74f78cd907528bb1f92c728f2c5d44d9306ea698e1e51",
+    "src/device/sliding/output31.rs": "3eb84044b38deb4ce1b8f1776c289e2880c552793eff95ddf007a26960efe0f9",
+    "src/device/sliding/projection.rs": "7d55898842b45f42ede939730c15a2bc3d860471481d9b2645b5d9ff06dd8969",
+    "src/device/sliding/qkv69382.rs": "de2d84a4d582861bc08b2758e3a380e5e397ada9db9e21998da32f6a7103f2bd",
+    "src/device/sliding/qkv_head_local.rs": "fd035d3a19dab1a88f2278cbd2603beb4f84bf8dcc96a43858e11aefd5213b12",
+    "src/device/sliding/rmsnorm.rs": "7ae1bd9751469667e76698beafb71afc6822d95465067b59cb6cbfe0f31b9095",
+    "src/device/sliding/rope.rs": "8424e895947797555be8ba7268cfb5e803760fa37049dbbe3c334fb856be217e",
+    "src/device/vision/layernorm.rs": "da4b2cf071c986f80fe4577c2ceaa7d5a4157190e0cf3118ad004ee912549e39",
+    "src/device/vision/mod.rs": "da48c2c09fc08b2950b7495a88bc7b36e61d6610d2635d9e4dde173bae0ecca8",
+    "src/device/vision/projection.rs": "b0a4e8821f1822b86dc4a45ea80050f61f433937e4fccfc3b818d0f71868ca85",
+    "src/host/audio.rs": "e7fff79e65ec67cce8fbb7415a28b52f7d350948e7ccb9287e9aaa6a8f051ce0",
+    "src/host/generate.rs": "03939905181ef43716feb9dd93e52a8e6e19ec51be0df9f680ad8b81949ae1cb",
+    "src/host/image.rs": "b4903f903073cf4c5b6bc0d8f77667b2f047a112571865cad0109f690b946f2c",
+    "src/host/load.rs": "fb05a5d79a63c92909f64e1d4cdd699556a42b4f369e88e2c0c11d46160ad892",
+    "src/host/mod.rs": "4b272852f112093ff750b3823ce1e72dbf1fd635e78e73629c53851d0b53d28c",
+    "src/host/runtime.rs": "207e7928f91bbb47dfd3742efc8f141f0529349e4b7bb243c5a735ff03ed75bc",
+    "src/host/sampling.rs": "71ee4a3dda3662f1242b421636c10c46b0255d6557d85f694b940882db1a6a11",
+    "src/host/tokenizer.rs": "7622d6e546c79befc68a93dbaab8e45f07fec1ed3ddb381f83a0c868a9ca64ce",
+    "src/lib.rs": "60b0a34c636ef6fe7857d74f560f13334a7cfc5e18a0c9e3a77549516f16141e",
+    "src/ops.rs": "dae27e42419a7c29c3d00d6733faafa1e321f2680db726240f0d30677b075dc7",
+    "src/ops_audio.rs": "c9da265a64e3c1c88aab1e91e9440b1d840b4f75c6b5e2ddc28e35d88776ecd5",
+    "src/ops_vision.rs": "fea14178f0b586aaa04fc4f7bfa6bc1f240f70446e91d75a42bf9e29c0ad762a"
+  },
+  "files": {
+    "test_runtime": "390b0501301b94a400dbd5bd0dc0fb96151770d16b137dc0bd56224b970a34c6",
+    "fixtures.safetensors": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+    "remote_entrypoint.sh": "2a5227182ac31a0cbee67e720a68f7640221a03548c1a4c752ce83cc40097930",
+    "Cargo.toml": "a12ac7d4bb47a3aedf55e2963241bf0336a721a8a686af7b249fbbb979a17cc5",
+    "Cargo.lock": "d3868bb8264fcecd798ac8df1dc11740465d790385a7d518901916c042c08ff6",
+    "rust-toolchain.toml": "7732dbe17f14f13d2bad5afc39ab9ca1b0fe9769c5ea845ff0d093eefb22a789"
+  }
+}

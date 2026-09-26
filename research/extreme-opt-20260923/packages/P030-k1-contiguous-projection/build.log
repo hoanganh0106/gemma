@@ -1,0 +1,3 @@
+   Compiling furiosa-opt-gemma4 v0.1.0 (/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P030-k1-contiguous-projection)
+   Compiling furiosa_opt_gemma4::ops::sliding_project_qkv
+    Finished `release` profile [optimized] target(s) in 38.17s

@@ -1,0 +1,12 @@
+{
+  "package": "P156-P005-plus-P120-residual-order",
+  "label": "p156-p120-residual-clean-20260925",
+  "diagnostic": false,
+  "binary_sha256": "390b0501301b94a400dbd5bd0dc0fb96151770d16b137dc0bd56224b970a34c6",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 94352 (p156-p120-residual-clean-20260925)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 94352
+}

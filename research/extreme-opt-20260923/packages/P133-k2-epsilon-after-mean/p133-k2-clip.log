@@ -1,0 +1,43 @@
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `vector_intra_slice_tag` found for struct `VectorTensor<'_, Main, ..., f32, ..., ..., ..., ..., ..., ..., IntraFirst, ..., Way4>` in the current scope
+   --> src/device/sliding/output31.rs:224:10
+    |
+216 |       let mean: DmTensor<f32, Chip, Vc, m![1 # 8, Vr], m![1 # 8]> = device
+    |  ___________________________________________________________________-
+217 | |         .main.begin(partial.view())
+218 | |         .fetch::<m![1], m![1 # 8]>()
+219 | |         .switch::<m![1 # 8, Vr], m![H / 120]>(SwitchConfig::Broadcast1 { slice1: 32, slice0: 1 })
+...   |
+223 | |         .vector_intra_slice_reduce::<H, m![1], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+224 | |         .vector_intra_slice_tag(TagMode::Zero)
+    | |         -^^^^^^^^^^^^^^^^^^^^^^ method not found in `VectorTensor<'_, Main, ..., f32, ..., ..., ..., ..., ..., ..., IntraFirst, ..., Way4>`
+    | |_________|
+    |
+    |
+    = note: the method was found for `furiosa_opt_std::prelude::VectorTensor<'l, T, S, D, Chip, Cluster, Slice, Time, Packet, Stash, furiosa_opt_std::::engine::vector::tensor::vector_tensor::{impl#11}::{constant#0}, FS, furiosa_opt_std::::engine::vector::tensor::vector_tensor::{impl#11}::{constant#1}>`
+    = note: the full name for the type has been written to '/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P133-k2-epsilon-after-mean/target/furiosa-opt/compile/debug/deps/furiosa_opt_gemma4-30dff6097f054041.long-type-13262873955173393178.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `furiosa-opt-gemma4` (lib) due to 1 previous error; 3 warnings emitted

@@ -1,0 +1,290 @@
+{
+  "jobs": {
+    "A1": {
+      "job_id": 78017,
+      "status": {
+        "id": 78017,
+        "owner": "hoanganh0106",
+        "mine": true,
+        "name": "research-current-sdk081-three-seeds",
+        "status": "SUCCEEDED",
+        "created_at": "2026-09-23T06:49:47Z",
+        "started_at": "2026-09-23T06:51:51Z",
+        "finished_at": "2026-09-23T06:51:58Z",
+        "duration_sec": 6.6255709419999995,
+        "exit_code": 0,
+        "device_id": null
+      },
+      "kernels": {
+        "sliding_project_qkv": {
+          "median_cycles": 91270,
+          "sample_count": 3,
+          "cycles": [
+            102213,
+            90703,
+            91270
+          ],
+          "output_checks": [
+            "[sliding_project_qkv q run0        ] max|Δ|=  0.03125 (   0.85% of expected)  mean|Δ|= 0.001095  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run0        ] max|Δ|=  0.03125 (   1.06% of expected)  mean|Δ|= 0.001053  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001123  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run1        ] max|Δ|=  0.02344 (   1.25% of expected)  mean|Δ|= 0.000987  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   0.99% of expected)  mean|Δ|= 0.000942  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.96% of expected)  mean|Δ|= 0.001193  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   1.09% of expected)  mean|Δ|= 0.001112  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run2        ] max|Δ|=  0.01562 (   0.69% of expected)  mean|Δ|= 0.000963  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   0.92% of expected)  mean|Δ|= 0.001146  within tol=100.00%  -> PASS"
+          ]
+        },
+        "sliding_attention_output": {
+          "median_cycles": 44471,
+          "sample_count": 3,
+          "cycles": [
+            44471,
+            44409,
+            44622
+          ],
+          "output_checks": [
+            "[sliding_attention_output run0     ] max|Δ|=  0.01562 (   0.60% of expected)  mean|Δ|= 0.000868  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run1     ] max|Δ|=  0.03125 (   0.62% of expected)  mean|Δ|= 0.000863  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run2     ] max|Δ|=  0.03125 (   0.71% of expected)  mean|Δ|= 0.000888  within tol=100.00%  -> PASS"
+          ]
+        },
+        "decoder_feedforward": {
+          "median_cycles": 220925,
+          "sample_count": 3,
+          "cycles": [
+            224052,
+            220925,
+            219896
+          ],
+          "output_checks": [
+            "[decoder_feedforward run0          ] max|Δ|=  0.00781 (   1.20% of expected)  mean|Δ|= 0.000674  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run1          ] max|Δ|=  0.00781 (   1.37% of expected)  mean|Δ|= 0.000961  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run2          ] max|Δ|=  0.01172 (   1.40% of expected)  mean|Δ|= 0.001032  within tol=100.00%  -> PASS"
+          ]
+        }
+      },
+      "output_pass_count": 15
+    },
+    "B1": {
+      "job_id": 78085,
+      "status": {
+        "id": 78085,
+        "owner": "hoanganh0106",
+        "mine": true,
+        "name": "research-k2-direct-vrf-sdk081-three-seeds",
+        "status": "SUCCEEDED",
+        "created_at": "2026-09-23T07:01:44Z",
+        "started_at": "2026-09-23T07:02:22Z",
+        "finished_at": "2026-09-23T07:02:29Z",
+        "duration_sec": 6.66311081,
+        "exit_code": 0,
+        "device_id": null
+      },
+      "kernels": {
+        "sliding_project_qkv": {
+          "median_cycles": 92772,
+          "sample_count": 3,
+          "cycles": [
+            100879,
+            91204,
+            92772
+          ],
+          "output_checks": [
+            "[sliding_project_qkv q run0        ] max|Δ|=  0.03125 (   0.85% of expected)  mean|Δ|= 0.001095  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run0        ] max|Δ|=  0.03125 (   1.06% of expected)  mean|Δ|= 0.001053  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001123  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run1        ] max|Δ|=  0.02344 (   1.25% of expected)  mean|Δ|= 0.000987  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   0.99% of expected)  mean|Δ|= 0.000942  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.96% of expected)  mean|Δ|= 0.001193  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   1.09% of expected)  mean|Δ|= 0.001112  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run2        ] max|Δ|=  0.01562 (   0.69% of expected)  mean|Δ|= 0.000963  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   0.92% of expected)  mean|Δ|= 0.001146  within tol=100.00%  -> PASS"
+          ]
+        },
+        "sliding_attention_output": {
+          "median_cycles": 44306,
+          "sample_count": 3,
+          "cycles": [
+            44306,
+            44352,
+            43972
+          ],
+          "output_checks": [
+            "[sliding_attention_output run0     ] max|Δ|=  0.01562 (   0.60% of expected)  mean|Δ|= 0.000868  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run1     ] max|Δ|=  0.03125 (   0.62% of expected)  mean|Δ|= 0.000863  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run2     ] max|Δ|=  0.03125 (   0.71% of expected)  mean|Δ|= 0.000888  within tol=100.00%  -> PASS"
+          ]
+        },
+        "decoder_feedforward": {
+          "median_cycles": 220747,
+          "sample_count": 3,
+          "cycles": [
+            222302,
+            220747,
+            219302
+          ],
+          "output_checks": [
+            "[decoder_feedforward run0          ] max|Δ|=  0.00781 (   1.20% of expected)  mean|Δ|= 0.000674  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run1          ] max|Δ|=  0.00781 (   1.37% of expected)  mean|Δ|= 0.000961  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run2          ] max|Δ|=  0.01172 (   1.40% of expected)  mean|Δ|= 0.001032  within tol=100.00%  -> PASS"
+          ]
+        }
+      },
+      "output_pass_count": 15
+    },
+    "B2": {
+      "job_id": 78108,
+      "status": {
+        "id": 78108,
+        "owner": "hoanganh0106",
+        "mine": true,
+        "name": "research-k2-direct-vrf-sdk081-three-seeds",
+        "status": "SUCCEEDED",
+        "created_at": "2026-09-23T07:05:15Z",
+        "started_at": "2026-09-23T07:05:20Z",
+        "finished_at": "2026-09-23T07:05:26Z",
+        "duration_sec": 6.683341193,
+        "exit_code": 0,
+        "device_id": null
+      },
+      "kernels": {
+        "sliding_project_qkv": {
+          "median_cycles": 91859,
+          "sample_count": 3,
+          "cycles": [
+            95891,
+            91859,
+            90392
+          ],
+          "output_checks": [
+            "[sliding_project_qkv q run0        ] max|Δ|=  0.03125 (   0.85% of expected)  mean|Δ|= 0.001095  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run0        ] max|Δ|=  0.03125 (   1.06% of expected)  mean|Δ|= 0.001053  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001123  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run1        ] max|Δ|=  0.02344 (   1.25% of expected)  mean|Δ|= 0.000987  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   0.99% of expected)  mean|Δ|= 0.000942  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.96% of expected)  mean|Δ|= 0.001193  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   1.09% of expected)  mean|Δ|= 0.001112  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run2        ] max|Δ|=  0.01562 (   0.69% of expected)  mean|Δ|= 0.000963  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   0.92% of expected)  mean|Δ|= 0.001146  within tol=100.00%  -> PASS"
+          ]
+        },
+        "sliding_attention_output": {
+          "median_cycles": 43960,
+          "sample_count": 3,
+          "cycles": [
+            43960,
+            43868,
+            44377
+          ],
+          "output_checks": [
+            "[sliding_attention_output run0     ] max|Δ|=  0.01562 (   0.60% of expected)  mean|Δ|= 0.000868  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run1     ] max|Δ|=  0.03125 (   0.62% of expected)  mean|Δ|= 0.000863  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run2     ] max|Δ|=  0.03125 (   0.71% of expected)  mean|Δ|= 0.000888  within tol=100.00%  -> PASS"
+          ]
+        },
+        "decoder_feedforward": {
+          "median_cycles": 222051,
+          "sample_count": 3,
+          "cycles": [
+            223038,
+            222051,
+            220756
+          ],
+          "output_checks": [
+            "[decoder_feedforward run0          ] max|Δ|=  0.00781 (   1.20% of expected)  mean|Δ|= 0.000674  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run1          ] max|Δ|=  0.00781 (   1.37% of expected)  mean|Δ|= 0.000961  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run2          ] max|Δ|=  0.01172 (   1.40% of expected)  mean|Δ|= 0.001032  within tol=100.00%  -> PASS"
+          ]
+        }
+      },
+      "output_pass_count": 15
+    },
+    "A2": {
+      "job_id": 78115,
+      "status": {
+        "id": 78115,
+        "owner": "hoanganh0106",
+        "mine": true,
+        "name": "research-current-sdk081-three-seeds",
+        "status": "SUCCEEDED",
+        "created_at": "2026-09-23T07:05:43Z",
+        "started_at": "2026-09-23T07:06:34Z",
+        "finished_at": "2026-09-23T07:06:40Z",
+        "duration_sec": 6.6739374,
+        "exit_code": 0,
+        "device_id": null
+      },
+      "kernels": {
+        "sliding_project_qkv": {
+          "median_cycles": 92098,
+          "sample_count": 3,
+          "cycles": [
+            97758,
+            90591,
+            92098
+          ],
+          "output_checks": [
+            "[sliding_project_qkv q run0        ] max|Δ|=  0.03125 (   0.85% of expected)  mean|Δ|= 0.001095  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run0        ] max|Δ|=  0.03125 (   1.06% of expected)  mean|Δ|= 0.001053  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001123  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run1        ] max|Δ|=  0.02344 (   1.25% of expected)  mean|Δ|= 0.000987  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   0.99% of expected)  mean|Δ|= 0.000942  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.96% of expected)  mean|Δ|= 0.001193  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   1.09% of expected)  mean|Δ|= 0.001112  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv k run2        ] max|Δ|=  0.01562 (   0.69% of expected)  mean|Δ|= 0.000963  within tol=100.00%  -> PASS",
+            "[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   0.92% of expected)  mean|Δ|= 0.001146  within tol=100.00%  -> PASS"
+          ]
+        },
+        "sliding_attention_output": {
+          "median_cycles": 44848,
+          "sample_count": 3,
+          "cycles": [
+            44523,
+            45009,
+            44848
+          ],
+          "output_checks": [
+            "[sliding_attention_output run0     ] max|Δ|=  0.01562 (   0.60% of expected)  mean|Δ|= 0.000868  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run1     ] max|Δ|=  0.03125 (   0.62% of expected)  mean|Δ|= 0.000863  within tol=100.00%  -> PASS",
+            "[sliding_attention_output run2     ] max|Δ|=  0.03125 (   0.71% of expected)  mean|Δ|= 0.000888  within tol=100.00%  -> PASS"
+          ]
+        },
+        "decoder_feedforward": {
+          "median_cycles": 222520,
+          "sample_count": 3,
+          "cycles": [
+            223666,
+            219985,
+            222520
+          ],
+          "output_checks": [
+            "[decoder_feedforward run0          ] max|Δ|=  0.00781 (   1.20% of expected)  mean|Δ|= 0.000674  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run1          ] max|Δ|=  0.00781 (   1.37% of expected)  mean|Δ|= 0.000961  within tol=100.00%  -> PASS",
+            "[decoder_feedforward run2          ] max|Δ|=  0.01172 (   1.40% of expected)  mean|Δ|= 0.001032  within tol=100.00%  -> PASS"
+          ]
+        }
+      },
+      "output_pass_count": 15
+    }
+  },
+  "output_pass_count": 60,
+  "total_output_count": 60,
+  "chronological_order_verified": true,
+  "printed_error_lines_identical_across_all_jobs": true,
+  "k2_B1_over_A1": 0.9962897168941558,
+  "k2_B2_over_A2": 0.9801997859436318,
+  "k2_logmean_ratio": -0.011858024083118828,
+  "k2_geometric_ratio": 0.98821200520814,
+  "k2_cycle_change_percent": -1.178799479185999,
+  "k2_observed_speedup": 1.0119286091746853,
+  "conditional_score_gain_percent_if_K1_and_K3_fixed": 0.3960496815697434,
+  "decision": "CORRECTNESS_PASS_PROMISING_ABBA_NOT_PROMOTED",
+  "limitations": [
+    "Two pairs only",
+    "All controller device_id fields are null",
+    "No stable performance confidence interval established",
+    "Printed error statistics do not prove bytewise output equality"
+  ]
+}

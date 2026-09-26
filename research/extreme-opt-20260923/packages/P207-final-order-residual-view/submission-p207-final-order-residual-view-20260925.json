@@ -1,0 +1,12 @@
+{
+  "package": "P207-final-order-residual-view",
+  "label": "p207-final-order-residual-view-20260925",
+  "diagnostic": false,
+  "binary_sha256": "522a1583fb2f0050356ce87cd45cd27bb4c4c0d687bc9571f6499f0e61c2468f",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 97700 (p207-final-order-residual-view-20260925)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 97700
+}

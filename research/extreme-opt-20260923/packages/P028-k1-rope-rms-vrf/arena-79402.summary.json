@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P028-k1-rope-rms-vrf/arena-79402.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    80056,
+    39871,
+    216623
+  ],
+  "samples": [
+    [
+      80056,
+      80651,
+      78526
+    ],
+    [
+      41024,
+      39462,
+      39871
+    ],
+    [
+      220247,
+      216623,
+      216362
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.157973696313046
+}

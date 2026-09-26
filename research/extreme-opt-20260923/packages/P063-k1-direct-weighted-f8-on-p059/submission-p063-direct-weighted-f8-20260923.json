@@ -1,0 +1,12 @@
+{
+  "package": "P063-k1-direct-weighted-f8-on-p059",
+  "label": "p063-direct-weighted-f8-20260923",
+  "diagnostic": false,
+  "binary_sha256": "ae744964a5a4124ecb998faf0929188c5623c0d0988376f068d4def3af15cc3e",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 84441 (p063-direct-weighted-f8-20260923)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 84441
+}

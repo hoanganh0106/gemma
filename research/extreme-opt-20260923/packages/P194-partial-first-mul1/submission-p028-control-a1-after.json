@@ -1,0 +1,11 @@
+{
+  "package": "P005-K1-081-K2K3-P005-final",
+  "label": "p028-control-a1-after",
+  "binary_sha256": "76cd70d40f541b1caf63f73c88ad166e39bddd09b6cb90d3c664d395116a913a",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 79406 (p028-control-a1-after)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 79406
+}

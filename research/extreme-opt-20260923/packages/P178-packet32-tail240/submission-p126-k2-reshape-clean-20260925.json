@@ -1,0 +1,12 @@
+{
+  "package": "P126-P005-plus-K2-z-reshape",
+  "label": "p126-k2-reshape-clean-20260925",
+  "diagnostic": false,
+  "binary_sha256": "50b7e4929718a47da24d21161ac223862d9de6d7666f450c8d263793d35a09ec",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 94200 (p126-k2-reshape-clean-20260925)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 94200
+}

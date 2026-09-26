@@ -1,0 +1,13 @@
+{
+  "id": 78108,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "research-k2-direct-vrf-sdk081-three-seeds",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T07:05:15Z",
+  "started_at": "2026-09-23T07:05:20Z",
+  "finished_at": "2026-09-23T07:05:26Z",
+  "duration_sec": 6.683341193,
+  "exit_code": 0,
+  "device_id": null
+}

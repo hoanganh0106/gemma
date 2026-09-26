@@ -1,0 +1,12 @@
+{
+  "package": "P206-final-order-scale-view",
+  "label": "p206-final-order-scale-view-20260925",
+  "diagnostic": false,
+  "binary_sha256": "f36a90d8e496d6383c58e6f467aab4f6ea10478390beef7074884ab6683098a7",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 97670 (p206-final-order-scale-view-20260925)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 97670
+}

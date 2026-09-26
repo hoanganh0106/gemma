@@ -1,0 +1,16 @@
+{
+  "package": "P024-k1-head-rms-vrf",
+  "parent": "P005-K1-081-K2K3-P005-final",
+  "changed": {
+    "src/device/sliding/qkv69382.rs": {
+      "parent": "de2d84a4d582861bc08b2758e3a380e5e397ada9db9e21998da32f6a7103f2bd",
+      "candidate": "d3609b3708a3488aa27538fa7e0ac8f8e32dc0372524d869ac0d2910a0cb5696"
+    }
+  },
+  "makespan": 42141,
+  "instruction_count": 186,
+  "schedule_sha256": "d4195d75d05b81083b85f1776f1ad0cb75af99b680c471454ad6cb34089e534b",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "correctness": "NOT_YET_RUN",
+  "arena": "NOT_YET_RUN"
+}

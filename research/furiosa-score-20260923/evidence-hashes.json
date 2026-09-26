@@ -1,0 +1,38 @@
+[
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\Cargo.toml",
+    "Hash": "A12AC7D4BB47A3AEDF55E2963241BF0336A721A8A686AF7B249FBBB979A17CC5"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\Cargo.lock",
+    "Hash": "D3868BB8264FCECD798AC8DF1DC11740465D790385A7D518901916C042C08FF6"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\rust-toolchain.toml",
+    "Hash": "7732DBE17F14F13D2BAD5AFC39AB9CA1B0FE9769C5EA845FF0D093EEFB22A789"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\ops.rs",
+    "Hash": "C75F578DC24603450EF7EBA136B12AA90CFD8DB6E928B3B320C8B34C1BD09F1C"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\qkv_head_local.rs",
+    "Hash": "E40F4ABFE84DEE3F3BBA2776B164E52382261D83130C7F71193E2FE4A6981C84"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\sliding\\output31.rs",
+    "Hash": "BCA4C687EB1BC735E806D0FA5A0E093358B172C91C990D532B53C9A0F0E79E95"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\device\\shared\\ffn7.rs",
+    "Hash": "087F4A4FB7E8E051CF8965052C8C8FC230F6E5732AB2ADA6E8D7123436776C3D"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\src\\bin\\test_kernels.rs",
+    "Hash": "42DB4E99AE788020726D530D1CD799E647779B7B9912E593401D6981CFFC7516"
+  },
+  {
+    "Path": "D:\\Project\\furiosa-opt-gemma4-12B-main\\research\\furiosa-score-20260923\\fixtures.safetensors",
+    "Hash": "338C0A8C06458A528B29D58F0F65A5EA13AF79A14A9929A06C571B8ADB002359"
+  }
+]

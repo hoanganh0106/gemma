@@ -1,0 +1,12 @@
+{
+  "package": "P208-final-order-rms-view",
+  "label": "p208-final-order-rms-view-20260926",
+  "diagnostic": false,
+  "binary_sha256": "1f8c1f8b47a87036a319c3c3859a8cf78f4541d8cd4ee618a8f745b97714d512",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 101812 (p208-final-order-rms-view-20260926)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 101812
+}

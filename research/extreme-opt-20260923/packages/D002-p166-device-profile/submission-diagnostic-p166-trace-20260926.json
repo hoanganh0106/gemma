@@ -1,0 +1,9 @@
+{
+  "package": "D002-p166-device-profile",
+  "label": "diagnostic-p166-trace-20260926",
+  "diagnostic": true,
+  "binary_sha256": "77bf75832ce23d6bc382087063ed1876a076fc9aed77e95b15103ddd13818790",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUCCEEDED",
+  "job_id": 102001
+}

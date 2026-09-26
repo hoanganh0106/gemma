@@ -1,0 +1,13 @@
+{
+  "id": 84175,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P057-sharded-weighted-rms-a1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T03:30:35Z",
+  "started_at": "2026-09-24T03:31:18Z",
+  "finished_at": "2026-09-24T03:31:25Z",
+  "duration_sec": 6.678367156,
+  "exit_code": 0,
+  "device_id": null
+}

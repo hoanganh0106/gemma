@@ -1,0 +1,1 @@
+Replace three FP32 head-RMS DM commits plus Sub reloads with Main-to-VRF delivery. Preserve arithmetic, sqrt, EPS, input_rms_weight, all projection and RoPE inputs, BF16 boundaries and physical mappings. Parent: P005-K1-081-K2K3-P005-final. Static parent: 42556 cycles / 189 instructions. Official harness unchanged.

@@ -1,0 +1,19 @@
+NPU kernel tests -- 3 cases x 3 independently-seeded runs against a precomputed reference, with on-device cycle counts
+
+==> sliding_project_qkv
+[sliding_project_qkv q run0        ] max|Δ|=  0.03125 (   0.85% of expected)  mean|Δ|= 0.001095  within tol=100.00%  -> PASS
+[sliding_project_qkv k run0        ] max|Δ|=  0.03125 (   1.06% of expected)  mean|Δ|= 0.001053  within tol=100.00%  -> PASS
+[sliding_project_qkv v run0        ] max|Δ|=  0.03125 (   0.78% of expected)  mean|Δ|= 0.001123  within tol=100.00%  -> PASS
+[sliding_project_qkv q run1        ] max|Δ|=  0.02344 (   1.25% of expected)  mean|Δ|= 0.000987  within tol=100.00%  -> PASS
+[sliding_project_qkv k run1        ] max|Δ|=  0.03125 (   0.99% of expected)  mean|Δ|= 0.000942  within tol=100.00%  -> PASS
+[sliding_project_qkv v run1        ] max|Δ|=  0.03125 (   0.96% of expected)  mean|Δ|= 0.001193  within tol=100.00%  -> PASS
+[sliding_project_qkv q run2        ] max|Δ|=  0.03125 (   1.09% of expected)  mean|Δ|= 0.001112  within tol=100.00%  -> PASS
+[sliding_project_qkv k run2        ] max|Δ|=  0.01562 (   0.69% of expected)  mean|Δ|= 0.000963  within tol=100.00%  -> PASS
+[sliding_project_qkv v run2        ] max|Δ|=  0.03125 (   0.92% of expected)  mean|Δ|= 0.001146  within tol=100.00%  -> PASS
+    median cycles=86154 (of 3 runs: [90531, 86035, 86154])
+
+==> sliding_attention_output
+
+thread 'main' (11819) panicked at src/bin/test_kernels.rs:568:6:
+called `Result::unwrap()` on an `Err` value: Device(Device("rank 0 left request 6 unanswered for 7s"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

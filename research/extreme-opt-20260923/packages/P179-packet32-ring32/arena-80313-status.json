@@ -1,0 +1,13 @@
+{
+  "id": 80313,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p036-control-a1-after",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T14:31:43Z",
+  "started_at": "2026-09-23T14:31:43Z",
+  "finished_at": "2026-09-23T14:31:49Z",
+  "duration_sec": 6.554651454,
+  "exit_code": 0,
+  "device_id": null
+}

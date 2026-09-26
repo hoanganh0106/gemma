@@ -1,0 +1,814 @@
+warning: unused imports: `Ps` and `Qs`
+ --> src/device/qkv/mod.rs:8:39
+  |
+8 | use crate::axes::{Ds, Dummy2, Gs, Ns, Ps, Qs};
+  |                                       ^^  ^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: type alias `QueryClusters` is never used
+  --> src/device/layout.rs:20:17
+   |
+20 | pub(crate) type QueryClusters = m![Qs / 2048];
+   |                 ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: type alias `KeyValueClusters` is never used
+  --> src/device/layout.rs:21:17
+   |
+21 | pub(crate) type KeyValueClusters = m![Ps / 1024];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: type alias `QkvColumns` is never used
+  --> src/device/layout.rs:25:17
+   |
+25 | pub(crate) type QkvColumns = m![Qs / 32 % 64, H / 960];
+   |                 ^^^^^^^^^^
+
+warning: function `broadcast_qkv_hidden` is never used
+  --> src/device/layout.rs:29:15
+   |
+29 | pub(crate) fn broadcast_qkv_hidden<Cluster: M>(
+   |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `KvColumns` is never used
+  --> src/device/layout.rs:43:17
+   |
+43 | pub(crate) type KvColumns = m![Ps / 16 % 64, H / 960];
+   |                 ^^^^^^^^^
+
+warning: type alias `QueryRowsReduced` is never used
+  --> src/device/layout.rs:45:17
+   |
+45 | pub(crate) type QueryRowsReduced = m![Qs / 32 % 64, 1 # 4];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: type alias `KeyValueRowsReduced` is never used
+  --> src/device/layout.rs:47:17
+   |
+47 | pub(crate) type KeyValueRowsReduced = m![Ps / 16 % 64, 1 # 4];
+   |                 ^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `QueryRowSlices` is never used
+  --> src/device/qkv/mod.rs:24:17
+   |
+24 | pub(crate) type QueryRowSlices = m![Ns % 4, Gs, Ds / 64, Ds % 8];
+   |                 ^^^^^^^^^^^^^^
+
+warning: type alias `KeyValueRowSlices` is never used
+  --> src/device/qkv/mod.rs:27:17
+   |
+27 | pub(crate) type KeyValueRowSlices = m![Ns % 4, Ds / 32, Ds % 4, Ds / 4 % 2];
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: type alias `HeadClusters` is never used
+  --> src/device/qkv/mod.rs:31:17
+   |
+31 | pub(crate) type HeadClusters = m![Ns / 4];
+   |                 ^^^^^^^^^^^^
+
+warning: type alias `HeadSlices` is never used
+  --> src/device/qkv/mod.rs:33:17
+   |
+33 | pub(crate) type HeadSlices = m![Ns % 4, 1 # 64];
+   |                 ^^^^^^^^^^
+
+warning: type alias `QueryRowsByHead` is never used
+  --> src/device/qkv/mod.rs:35:17
+   |
+35 | pub(crate) type QueryRowsByHead = m![Ns % 4, Gs, Ds / 8];
+   |                 ^^^^^^^^^^^^^^^
+
+warning: type alias `KvRowsByHead` is never used
+  --> src/device/qkv/mod.rs:37:17
+   |
+37 | pub(crate) type KvRowsByHead = m![Ns % 4, Ds / 4];
+   |                 ^^^^^^^^^^^^
+
+warning: type alias `Everywhere` is never used
+  --> src/device/qkv/mod.rs:39:17
+   |
+39 | pub(crate) type Everywhere = m![Rep16, Ring16];
+   |                 ^^^^^^^^^^
+
+warning: type alias `HeadCopyClusters` is never used
+  --> src/device/qkv/mod.rs:41:17
+   |
+41 | pub(crate) type HeadCopyClusters = m![Dummy2];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: type alias `HeadCopySlices` is never used
+  --> src/device/qkv/mod.rs:42:17
+   |
+42 | pub(crate) type HeadCopySlices = m![HeadCopy4, 1 # 64];
+   |                 ^^^^^^^^^^^^^^
+
+warning: constant `X_PRESCALE` is never used
+  --> src/device/qkv/mod.rs:48:18
+   |
+48 | pub(crate) const X_PRESCALE: f32 = 8.0;
+   |                  ^^^^^^^^^^
+
+warning: type alias `Cluster` is never used
+ --> src/device/qkv/headnorm.rs:8:6
+  |
+8 | type Cluster = HeadCopyClusters;
+  |      ^^^^^^^
+
+warning: type alias `Slice` is never used
+ --> src/device/qkv/headnorm.rs:9:6
+  |
+9 | type Slice = HeadCopySlices;
+  |      ^^^^^
+
+warning: constant `DS_F32` is never used
+  --> src/device/qkv/headnorm.rs:11:7
+   |
+11 | const DS_F32: f32 = Ds::SIZE as f32;
+   |       ^^^^^^
+
+warning: function `normalize_query` is never used
+  --> src/device/qkv/headnorm.rs:17:15
+   |
+17 | pub(crate) fn normalize_query(
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `root_mean_square` is never used
+  --> src/device/qkv/headnorm.rs:80:4
+   |
+80 | fn root_mean_square(
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `normalize_key` is never used
+   --> src/device/qkv/headnorm.rs:125:15
+    |
+125 | pub(crate) fn normalize_key(
+    |               ^^^^^^^^^^^^^
+
+warning: function `root_mean_square_tile` is never used
+   --> src/device/qkv/headnorm.rs:149:4
+    |
+149 | fn root_mean_square_tile(device: &mut Device, x: super::pool::Tile<'_>) -> VrfTensor<f32, Chip, Cluster, Slice,...
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/qkv/headnorm.rs:190:15
+    |
+190 | pub(crate) fn normalize_value(
+    |               ^^^^^^^^^^^^^^^
+
+warning: type alias `SmallPool` is never used
+  --> src/device/qkv/pool.rs:12:17
+   |
+12 | pub(crate) type SmallPool = DmTensor<bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Pool, Ds]>;
+   |                 ^^^^^^^^^
+
+warning: type alias `Vrf1` is never used
+  --> src/device/qkv/pool.rs:13:17
+   |
+13 | pub(crate) type Vrf1 = VrfTensor<f32, Chip, HeadCopyClusters, HeadCopySlices, m![Ds]>;
+   |                 ^^^^
+
+warning: type alias `Vrf2` is never used
+  --> src/device/qkv/pool.rs:14:17
+   |
+14 | pub(crate) type Vrf2 = VrfTensor<f32, Chip, HeadCopyClusters, HeadCopySlices, m![Pool = 2, Ds]>;
+   |                 ^^^^
+
+warning: constant `V_SCALE` is never used
+  --> src/device/qkv/pool.rs:16:18
+   |
+16 | pub(crate) const V_SCALE: usize = 0;
+   |                  ^^^^^^^
+
+warning: constant `K_SCALE` is never used
+  --> src/device/qkv/pool.rs:17:18
+   |
+17 | pub(crate) const K_SCALE: usize = 1;
+   |                  ^^^^^^^
+
+warning: constant `K_NORM` is never used
+  --> src/device/qkv/pool.rs:18:18
+   |
+18 | pub(crate) const K_NORM: usize = 2;
+   |                  ^^^^^^
+
+warning: constant `Q_NORM` is never used
+  --> src/device/qkv/pool.rs:19:18
+   |
+19 | pub(crate) const Q_NORM: usize = 3;
+   |                  ^^^^^^
+
+warning: constant `Q_SCALE` is never used
+  --> src/device/qkv/pool.rs:20:18
+   |
+20 | pub(crate) const Q_SCALE: usize = 4;
+   |                  ^^^^^^^
+
+warning: constant `K_HEAD` is never used
+  --> src/device/qkv/pool.rs:22:18
+   |
+22 | pub(crate) const K_HEAD: usize = 6;
+   |                  ^^^^^^
+
+warning: constant `ROPE` is never used
+  --> src/device/qkv/pool.rs:24:18
+   |
+24 | pub(crate) const ROPE: usize = 8;
+   |                  ^^^^
+
+warning: function `load_per_head` is never used
+  --> src/device/qkv/pool.rs:26:4
+   |
+26 | fn load_per_head(device: &mut Device, pool: &mut SmallPool, scale: &HbmTensor<bf16, Chip, m![Ps]>, index: usize) {
+   |    ^^^^^^^^^^^^^
+
+warning: function `load_shared` is never used
+  --> src/device/qkv/pool.rs:32:4
+   |
+32 | fn load_shared(device: &mut Device, pool: &mut SmallPool, weight: &HbmTensor<bf16, Chip, m![Ds]>, index: usize) {
+   |    ^^^^^^^^^^^
+
+warning: function `load` is never used
+  --> src/device/qkv/pool.rs:39:15
+   |
+39 | pub(crate) fn load(
+   |               ^^^^
+
+warning: function `load_rope` is never used
+  --> src/device/qkv/pool.rs:64:15
+   |
+64 | pub(crate) fn load_rope(device: &mut Device, pool: &mut SmallPool, rope_rows: &HbmTensor<bf16, Chip, m![RopeTabl...
+   |               ^^^^^^^^^
+
+warning: type alias `Tile` is never used
+  --> src/device/qkv/pool.rs:70:17
+   |
+70 | pub(crate) type Tile<'l> = DmTensorView<'l, bf16, Chip, HeadCopyClusters, HeadCopySlices, m![Pool = 1 # 10, Ds]>;
+   |                 ^^^^
+
+warning: function `tile` is never used
+  --> src/device/qkv/pool.rs:72:15
+   |
+72 | pub(crate) fn tile(pool: &SmallPool, index: usize) -> Tile<'_> {
+   |               ^^^^
+
+warning: function `vrf1` is never used
+  --> src/device/qkv/pool.rs:76:15
+   |
+76 | pub(crate) fn vrf1(device: &mut Device, pool: &SmallPool, index: usize) -> Vrf1 {
+   |               ^^^^
+
+warning: function `vrf2` is never used
+  --> src/device/qkv/pool.rs:85:15
+   |
+85 | pub(crate) fn vrf2(device: &mut Device, pool: &SmallPool, index: usize) -> Vrf2 {
+   |               ^^^^
+
+warning: type alias `QueryClusters` is never used
+  --> src/device/qkv/proj8.rs:13:6
+   |
+13 | type QueryClusters = HeadClusters;
+   |      ^^^^^^^^^^^^^
+
+warning: type alias `KeyValueClusters` is never used
+  --> src/device/qkv/proj8.rs:14:6
+   |
+14 | type KeyValueClusters = HeadClusters;
+   |      ^^^^^^^^^^^^^^^^
+
+warning: function `project_query` is never used
+  --> src/device/qkv/proj8.rs:17:15
+   |
+17 | pub(crate) fn project_query(
+   |               ^^^^^^^^^^^^^
+
+warning: type alias `KvPad` is never used
+  --> src/device/qkv/proj8.rs:61:6
+   |
+61 | type KvPad = DmTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Kv, Ds / 8 % 4, H]>;
+   |      ^^^^^
+
+warning: type alias `KvTile` is never used
+  --> src/device/qkv/proj8.rs:62:6
+   |
+62 | type KvTile<'l> = DmTensorView<'l, f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Kv = 1 # 2, Ds / 8 % 4,...
+   |      ^^^^^^
+
+warning: function `contract_kv_matrix` is never used
+  --> src/device/qkv/proj8.rs:64:4
+   |
+64 | fn contract_kv_matrix(
+   |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `project_value_matrix` is never used
+  --> src/device/qkv/proj8.rs:83:4
+   |
+83 | fn project_value_matrix(
+   |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_matrix` is never used
+   --> src/device/qkv/proj8.rs:111:4
+    |
+111 | fn project_key_matrix(
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_value` is never used
+   --> src/device/qkv/proj8.rs:140:15
+    |
+140 | pub(crate) fn project_key_value(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: type alias `QueryOperand` is never used
+   --> src/device/qkv/proj8.rs:159:6
+    |
+159 | type QueryOperand = TrfTensor<f8e4m3, Chip, QueryClusters, QueryRowSlices, m![Term], m![H]>;
+    |      ^^^^^^^^^^^^
+
+warning: type alias `KvOperand` is never used
+   --> src/device/qkv/proj8.rs:160:6
+    |
+160 | type KvOperand = TrfTensor<f8e4m3, Chip, KeyValueClusters, KeyValueRowSlices, m![Term], m![H]>;
+    |      ^^^^^^^^^
+
+warning: function `query_operand` is never used
+   --> src/device/qkv/proj8.rs:162:4
+    |
+162 | fn query_operand(
+    |    ^^^^^^^^^^^^^
+
+warning: function `key_value_operand` is never used
+   --> src/device/qkv/proj8.rs:173:4
+    |
+173 | fn key_value_operand(
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `contract_query` is never used
+   --> src/device/qkv/proj8.rs:186:4
+    |
+186 | fn contract_query(
+    |    ^^^^^^^^^^^^^^
+
+warning: function `contract_key_value` is never used
+   --> src/device/qkv/proj8.rs:226:4
+    |
+226 | fn contract_key_value(
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: type alias `Cluster` is never used
+ --> src/device/qkv/rope.rs:7:6
+  |
+7 | type Cluster = HeadCopyClusters;
+  |      ^^^^^^^
+
+warning: type alias `Slice` is never used
+ --> src/device/qkv/rope.rs:8:6
+  |
+8 | type Slice = HeadCopySlices;
+  |      ^^^^^
+
+warning: type alias `RopeRows` is never used
+  --> src/device/qkv/rope.rs:12:17
+   |
+12 | pub(crate) type RopeRows = DmTensor<bf16, Chip, Cluster, Slice, m![RopeTable, Ds]>;
+   |                 ^^^^^^^^
+
+warning: function `load_tables` is never used
+  --> src/device/qkv/rope.rs:21:15
+   |
+21 | pub(crate) fn load_tables(
+   |               ^^^^^^^^^^^
+
+warning: function `apply_rope` is never used
+  --> src/device/qkv/rope.rs:51:15
+   |
+51 | pub(crate) fn apply_rope(
+   |               ^^^^^^^^^^
+
+warning: constant `H_F32` is never used
+  --> src/device/qkv/xnorm8.rs:14:7
+   |
+14 | const H_F32: f32 = H::SIZE as f32;
+   |       ^^^^^
+
+warning: function `normalize_everywhere_f8` is never used
+  --> src/device/qkv/xnorm8.rs:16:15
+   |
+16 | pub(crate) fn normalize_everywhere_f8<Cluster: M>(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `XTerms` is never used
+   --> src/device/qkv/xnorm8.rs:148:17
+    |
+148 | pub(crate) type XTerms<Cluster> = DmTensor<f8e4m3, Chip, Cluster, m![Rep16, Ring16], m![Term, H]>;
+    |                 ^^^^^^
+
+warning: function `gather_f8` is never used
+   --> src/device/qkv/xnorm8.rs:153:4
+    |
+153 | fn gather_f8<Cluster: M>(
+    |    ^^^^^^^^^
+
+warning: constant `DOWN_GAIN` is never used
+  --> src/device/shared/ffn7.rs:29:7
+   |
+29 | const DOWN_GAIN: f32 = 0.25;
+   |       ^^^^^^^^^
+
+warning: constant `INVSQRT2` is never used
+ --> src/device/shared/mlp.rs:7:7
+  |
+7 | const INVSQRT2: f32 = 0.70710678118f32;
+  |       ^^^^^^^^
+
+warning: type alias `UpGateRows` is never used
+ --> src/device/shared/mlp.rs:9:17
+  |
+9 | pub(crate) type UpGateRows = m![L / 60];
+  |                 ^^^^^^^^^^
+
+warning: type alias `UpGateRowsPaired` is never used
+  --> src/device/shared/mlp.rs:10:17
+   |
+10 | pub(crate) type UpGateRowsPaired = m![L / 120, 1 # 2];
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: function `project_up_and_gate` is never used
+  --> src/device/shared/mlp.rs:13:15
+   |
+13 | pub(crate) fn project_up_and_gate(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `feedforward` is never used
+   --> src/device/shared/mlp.rs:159:15
+    |
+159 | pub(crate) fn feedforward(
+    |               ^^^^^^^^^^^
+
+warning: function `geglu` is never used
+   --> src/device/shared/mlp.rs:219:15
+    |
+219 | pub(crate) fn geglu(
+    |               ^^^^^
+
+warning: type alias `DownRows` is never used
+   --> src/device/shared/mlp.rs:338:17
+    |
+338 | pub(crate) type DownRows = m![H / 120, 1 # 8];
+    |                 ^^^^^^^^
+
+warning: type alias `DownRowsByColumns` is never used
+   --> src/device/shared/mlp.rs:339:17
+    |
+339 | pub(crate) type DownRowsByColumns = m![H / 120, L / 1920];
+    |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `project_down` is never used
+   --> src/device/shared/mlp.rs:341:15
+    |
+341 | pub(crate) fn project_down(
+    |               ^^^^^^^^^^^^
+
+warning: function `scale_by_layer_gate` is never used
+  --> src/device/shared/residual.rs:46:15
+   |
+46 | pub(crate) fn scale_by_layer_gate(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_spread` is never used
+   --> src/device/shared/rmsnorm.rs:124:15
+    |
+124 | pub(crate) fn normalize_spread<Cluster: M, Slice: M>(
+    |               ^^^^^^^^^^^^^^^^
+
+warning: function `normalize_columns` is never used
+   --> src/device/shared/rmsnorm.rs:142:15
+    |
+142 | pub(crate) fn normalize_columns<Cluster: M, Slice: M>(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: type alias `QkvDualQueryCluster` is never used
+ --> src/device/sliding/qkv_head_local.rs:7:6
+  |
+7 | type QkvDualQueryCluster = m![Qs / 2048 % 2];
+  |      ^^^^^^^^^^^^^^^^^^^
+
+warning: type alias `HeadCluster` is never used
+  --> src/device/sliding/qkv_head_local.rs:10:17
+   |
+10 | pub(crate) type HeadCluster = m![Ns / 4];
+   |                 ^^^^^^^^^^^
+
+warning: type alias `QueryHeads` is never used
+  --> src/device/sliding/qkv_head_local.rs:11:17
+   |
+11 | pub(crate) type QueryHeads = m![Ns % 4, Gs, 1 # 32];
+   |                 ^^^^^^^^^^
+
+warning: type alias `KvHeads` is never used
+  --> src/device/sliding/qkv_head_local.rs:12:17
+   |
+12 | pub(crate) type KvHeads = m![Ns % 4, 1 # 64];
+   |                 ^^^^^^^
+
+warning: type alias `QueryHeadTensor` is never used
+  --> src/device/sliding/qkv_head_local.rs:13:17
+   |
+13 | pub(crate) type QueryHeadTensor = DmTensor<bf16, Chip, HeadCluster, QueryHeads, m![Ds]>;
+   |                 ^^^^^^^^^^^^^^^
+
+warning: type alias `KvHeadTensor` is never used
+  --> src/device/sliding/qkv_head_local.rs:14:17
+   |
+14 | pub(crate) type KvHeadTensor = DmTensor<bf16, Chip, HeadCluster, KvHeads, m![Ds]>;
+   |                 ^^^^^^^^^^^^
+
+warning: type alias `KvCluster` is never used
+  --> src/device/sliding/qkv_head_local.rs:15:6
+   |
+15 | type KvCluster = m![Ps / 1024];
+   |      ^^^^^^^^^
+
+warning: type alias `KvRows` is never used
+  --> src/device/sliding/qkv_head_local.rs:16:6
+   |
+16 | type KvRows = m![Ps / 4 % 256];
+   |      ^^^^^^
+
+warning: type alias `NativeSlices` is never used
+  --> src/device/sliding/qkv_head_local.rs:19:6
+   |
+19 | type NativeSlices = m![Dummy256];
+   |      ^^^^^^^^^^^^
+
+warning: type alias `NativeTrf` is never used
+  --> src/device/sliding/qkv_head_local.rs:20:17
+   |
+20 | pub(crate) type NativeTrf = TrfTensor<f8e4m3, Chip, QkvDualQueryCluster, NativeSlices, m![Dummy2], m![H]>;
+   |                 ^^^^^^^^^
+
+warning: type alias `NativeScale` is never used
+  --> src/device/sliding/qkv_head_local.rs:21:17
+   |
+21 | pub(crate) type NativeScale = VrfTensor<f32, Chip, QkvDualQueryCluster, NativeSlices, m![1 # 8]>;
+   |                 ^^^^^^^^^^^
+
+warning: function `project_query` is never used
+  --> src/device/sliding/qkv_head_local.rs:23:15
+   |
+23 | pub(crate) fn project_query(
+   |               ^^^^^^^^^^^^^
+
+warning: function `project_one_kv_matrix` is never used
+  --> src/device/sliding/qkv_head_local.rs:86:4
+   |
+86 | fn project_one_kv_matrix(
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_value` is never used
+   --> src/device/sliding/qkv_head_local.rs:150:15
+    |
+150 | pub(crate) fn project_key_value(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `root_mean_square` is never used
+   --> src/device/sliding/qkv_head_local.rs:164:4
+    |
+164 | fn root_mean_square<S: M>(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `normalize_weighted` is never used
+   --> src/device/sliding/qkv_head_local.rs:198:15
+    |
+198 | pub(crate) fn normalize_weighted<S: M>(
+    |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/sliding/qkv_head_local.rs:228:15
+    |
+228 | pub(crate) fn normalize_value(
+    |               ^^^^^^^^^^^^^^^
+
+warning: function `rope_one` is never used
+   --> src/device/sliding/qkv_head_local.rs:249:4
+    |
+249 | fn rope_one<S: M>(
+    |    ^^^^^^^^
+
+warning: function `apply_rope` is never used
+   --> src/device/sliding/qkv_head_local.rs:315:15
+    |
+315 | pub(crate) fn apply_rope(
+    |               ^^^^^^^^^^
+
+warning: function `scale_head` is never used
+   --> src/device/sliding/qkv_head_local.rs:340:4
+    |
+340 | fn scale_head<S: M>(
+    |    ^^^^^^^^^^
+
+warning: function `normalize_native_input` is never used
+   --> src/device/sliding/qkv_head_local.rs:367:15
+    |
+367 | pub(crate) fn normalize_native_input(
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_query` is never used
+ --> src/device/sliding/projection.rs:7:15
+  |
+7 | pub(crate) fn project_query(
+  |               ^^^^^^^^^^^^^
+
+warning: type alias `KvRows` is never used
+  --> src/device/sliding/projection.rs:84:6
+   |
+84 | type KvRows = m![Ps / 8];
+   |      ^^^^^^
+
+warning: function `project_one_kv_matrix` is never used
+  --> src/device/sliding/projection.rs:86:4
+   |
+86 | fn project_one_kv_matrix(
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `project_key_value` is never used
+   --> src/device/sliding/projection.rs:151:15
+    |
+151 | pub(crate) fn project_key_value(
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `project_output` is never used
+   --> src/device/sliding/projection.rs:178:15
+    |
+178 | pub(crate) fn project_output(
+    |               ^^^^^^^^^^^^^^
+
+warning: type alias `HiddenRows` is never used
+   --> src/device/sliding/projection.rs:198:6
+    |
+198 | type HiddenRows = m![H / 120, 1 # 8];
+    |      ^^^^^^^^^^
+
+warning: function `output_partial` is never used
+   --> src/device/sliding/projection.rs:200:4
+    |
+200 | fn output_partial(
+    |    ^^^^^^^^^^^^^^
+
+warning: function `add_partials` is never used
+   --> src/device/sliding/projection.rs:241:4
+    |
+241 | fn add_partials(
+    |    ^^^^^^^^^^^^
+
+warning: function `apply_output_channel_scale` is never used
+   --> src/device/sliding/projection.rs:268:4
+    |
+268 | fn apply_output_channel_scale(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `DS_F32` is never used
+ --> src/device/sliding/rmsnorm.rs:7:7
+  |
+7 | const DS_F32: f32 = Ds::SIZE as f32;
+  |       ^^^^^^
+
+warning: function `normalize_query` is never used
+ --> src/device/sliding/rmsnorm.rs:9:15
+  |
+9 | pub(crate) fn normalize_query<Cluster: M, Slice: M>(
+  |               ^^^^^^^^^^^^^^^
+
+warning: function `load_norm_weight` is never used
+  --> src/device/sliding/rmsnorm.rs:75:4
+   |
+75 | fn load_norm_weight<Cluster: M, Slice: M>(
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `root_mean_square` is never used
+  --> src/device/sliding/rmsnorm.rs:90:4
+   |
+90 | fn root_mean_square<Cluster: M, Slice: M>(
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `scale_by_rms_and_weight` is never used
+   --> src/device/sliding/rmsnorm.rs:136:4
+    |
+136 | fn scale_by_rms_and_weight<Cluster: M, Slice: M>(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `scale_by_rms` is never used
+   --> src/device/sliding/rmsnorm.rs:160:4
+    |
+160 | fn scale_by_rms<Cluster: M, Slice: M>(
+    |    ^^^^^^^^^^^^
+
+warning: function `normalize_key` is never used
+   --> src/device/sliding/rmsnorm.rs:182:15
+    |
+182 | pub(crate) fn normalize_key(
+    |               ^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/sliding/rmsnorm.rs:193:15
+    |
+193 | pub(crate) fn normalize_value(
+    |               ^^^^^^^^^^^^^^^
+
+warning: type alias `KvHeadsAcrossSlices` is never used
+ --> src/device/sliding/rope.rs:7:6
+  |
+7 | type KvHeadsAcrossSlices = m![1 # 32, Ns];
+  |      ^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_rope` is never used
+ --> src/device/sliding/rope.rs:9:15
+  |
+9 | pub(crate) fn apply_rope(
+  |               ^^^^^^^^^^
+
+warning: type alias `KvCluster` is never used
+  --> src/device/sliding/qkv69382.rs:16:6
+   |
+16 | type KvCluster = m![Ps / 1024];
+   |      ^^^^^^^^^
+
+warning: type alias `KvRows` is never used
+  --> src/device/sliding/qkv69382.rs:17:6
+   |
+17 | type KvRows = m![Ps / 4 % 256];
+   |      ^^^^^^
+
+warning: type alias `NativeScale` is never used
+  --> src/device/sliding/qkv69382.rs:22:17
+   |
+22 | pub(crate) type NativeScale = VrfTensor<f32, Chip, QkvDualQueryCluster, NativeSlices, m![1 # 8]>;
+   |                 ^^^^^^^^^^^
+
+warning: function `copy_query` is never used
+   --> src/device/sliding/qkv69382.rs:110:15
+    |
+110 | pub(crate) fn copy_query(ctx: &mut Device, x: &QueryHeadTensor) -> QueryHeadTensor {
+    |               ^^^^^^^^^^
+
+warning: function `project_one_kv_matrix_scaled` is never used
+   --> src/device/sliding/qkv69382.rs:119:4
+    |
+119 | fn project_one_kv_matrix_scaled(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_projection_scale_kv` is never used
+   --> src/device/sliding/qkv69382.rs:280:4
+    |
+280 | fn apply_projection_scale_kv(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_query_project_scaled` is never used
+   --> src/device/sliding/qkv69382.rs:426:15
+    |
+426 | pub(crate) fn normalize_query_project_scaled(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `normalize_value` is never used
+   --> src/device/sliding/qkv69382.rs:551:15
+    |
+551 | pub(crate) fn normalize_value(ctx: &mut Device, x: &KvHeadTensor) -> KvHeadTensor {
+    |               ^^^^^^^^^^^^^^^
+
+warning: function `rope_one` is never used
+   --> src/device/sliding/qkv69382.rs:569:4
+    |
+569 | fn rope_one<S: M>(
+    |    ^^^^^^^^
+
+warning: function `scale_head` is never used
+   --> src/device/sliding/qkv69382.rs:834:4
+    |
+834 | fn scale_head<S: M>(
+    |    ^^^^^^^^^^
+
+   Compiling [1/1] ops::decoder_feedforward
+
+thread '<unnamed>' (19385) panicked at crates/furiosa-opt/npu-mapping-impl/src/sequencer/smapping.rs:555:9:
+padding size must be >= current size
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+fatal runtime error: Rust cannot catch foreign exceptions, aborting
+error: could not compile `furiosa-opt-gemma4` (lib); 133 warnings emitted
+
+Caused by:
+  process didn't exit successfully: `/home/hoanganh/.cargo/bin/furiosa-opt-driver /home/hoanganh/.rustup/toolchains/nightly-2026-05-01-x86_64-unknown-linux-gnu/bin/rustc --crate-name furiosa_opt_gemma4 --edition=2024 src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata -C panic=abort -C embed-bitcode=no -C debuginfo=2 --warn=unexpected_cfgs --check-cfg 'cfg(backend, values("npu"))' --check-cfg 'cfg(furiosa_opt)' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values())' -C metadata=ff5a775be3f72007 -C extra-filename=-30dff6097f054041 --out-dir /mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps -L dependency=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps --extern furiosa_opt_std=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libfuriosa_opt_std-2227abdbd5fae3a0.rmeta --extern image=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libimage-b63e02e32fa7ba70.rmeta --extern llm_tokenizer=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libllm_tokenizer-9fc1b147ac138280.rmeta --extern memmap2=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libmemmap2-ae44ce924e686add.rmeta --extern num_traits=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libnum_traits-bda7def6915a0c8c.rmeta --extern rand=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/librand-ae59932330f9a1db.rmeta --extern safetensors=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libsafetensors-ebbd4036f8929a23.rmeta --extern serde=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libserde-2239c2dc1ad8730e.rmeta --extern serde_json=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libserde_json-5d54f4adcd78ca43.rmeta --extern tokio=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libtokio-58b0f4dc284e769b.rmeta --extern tracing=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/deps/libtracing-769111fcc359f640.rmeta '--cfg=backend="npu"' -Zmir-opt-level=0 -Zalways-encode-mir -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/furiosa-mapping-8205a1c76e411625/out/furiosa-mapping-impl-target/x86_64-unknown-linux-gnu/release -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/furiosa-opt-lower-8739c1e7be789539/out/furiosa-opt-lower-impl-target/x86_64-unknown-linux-gnu/release -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/blake3-73cafca01066c640/out -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/ring-78406d4772cbfa38/out -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/esaxx-rs-d020e994a95e1156/out -L native=/mnt/d/Project/furiosa-opt-gemma4-12B-main/target/furiosa-opt/compile/debug/build/onig_sys-1e8635d374065ac0/out` (signal: 6, SIGABRT: process abort signal)

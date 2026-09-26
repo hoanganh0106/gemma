@@ -1,0 +1,13 @@
+{
+  "id": 83737,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "P047-control-r2",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-24T02:31:08Z",
+  "started_at": "2026-09-24T02:31:27Z",
+  "finished_at": "2026-09-24T02:31:34Z",
+  "duration_sec": 6.653322664,
+  "exit_code": 0,
+  "device_id": null
+}

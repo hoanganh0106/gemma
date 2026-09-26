@@ -1,0 +1,14 @@
+run 0:
+  sliding_project_qkv                expected.q, expected.k, expected.v  (15 inputs)
+  sliding_attention_output           expected  (5 inputs)
+  decoder_feedforward                expected  (13 inputs)
+run 1:
+  sliding_project_qkv                expected.q, expected.k, expected.v  (15 inputs)
+  sliding_attention_output           expected  (5 inputs)
+  decoder_feedforward                expected  (13 inputs)
+run 2:
+  sliding_project_qkv                expected.q, expected.k, expected.v  (15 inputs)
+  sliding_attention_output           expected  (5 inputs)
+  decoder_feedforward                expected  (13 inputs)
+
+wrote research/furiosa-score-20260923/fixtures.safetensors (0.20 MB, 3 runs x 3 tests)

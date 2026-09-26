@@ -1,0 +1,64 @@
+error[E0432]: unresolved import `super::mlp::UpGateClusters`
+  --> src/device/shared/ffn7.rs:10:5
+   |
+10 | use super::mlp::UpGateClusters;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^ no `UpGateClusters` in `device::shared::mlp`
+
+error[E0432]: unresolved import `super::rmsnorm::ReducingSlices`
+  --> src/device/shared/ffn7.rs:11:5
+   |
+11 | use super::rmsnorm::ReducingSlices;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `ReducingSlices` in `device::shared::rmsnorm`
+
+error[E0432]: unresolved imports `crate::device::layout::OutputClusters`, `crate::device::layout::SlidingOutputColumns`, `crate::device::layout::SlidingOutputRows`
+  --> src/device/sliding/output31.rs:25:29
+   |
+25 | use crate::device::layout::{OutputClusters, SlidingOutputColumns, SlidingOutputRows};
+   |                             ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^ no `SlidingOutputRows` in `device::layout`
+   |                             |               |
+   |                             |               no `SlidingOutputColumns` in `device::layout`
+   |                             no `OutputClusters` in `device::layout`
+
+error[E0425]: cannot find type `ReducingSlices` in module `shared::rmsnorm`
+   --> src/ops.rs:227:66
+    |
+227 |     let residual: DmTensor<bf16, Chip, Cluster, shared::rmsnorm::ReducingSlices, m![H % 480]> =
+    |                                                                  ^^^^^^^^^^^^^^ not found in `shared::rmsnorm`
+
+warning: unused import: `crate::device::layout::Replicated`
+ --> src/device/sliding/qkv69382.rs:6:5
+  |
+6 | use crate::device::layout::Replicated;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0034]: multiple applicable items in scope
+  --> src/device/shared/ffn7.rs:92:10
+   |
+92 |         .vector_inter_slice_reduce::<Gathered, m![1]>(InterSliceReduceOpF32::Add)
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `vector_inter_slice_reduce` found
+   |
+   = note: candidate #1 is defined in an impl for the type `furiosa_opt_std::prelude::VectorInitTensor<'l, T, f32, Chip, Cluster, Slice, Time, Packet>`
+   = note: candidate #2 is defined in an impl for the type `furiosa_opt_std::prelude::VectorInitTensor<'l, T, i32, Chip, Cluster, Slice, Time, Packet>`
+
+error[E0034]: multiple applicable items in scope
+   --> src/device/shared/ffn7.rs:649:10
+    |
+649 |         .vector_intra_slice_reduce::<H, m![1], m![1 # 4]>(IntraSliceReduceOpF32::Add)
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^^ multiple `vector_intra_slice_reduce` found
+    |
+    = note: candidate #1 is defined in an impl for the type `furiosa_opt_std::prelude::VectorTensor<'l, T, S, f32, Chip, Cluster, Slice, Time, Packet, Stash, VE_ORDER, furiosa_opt_std::prelude::stage::Standalone, furiosa_opt_std::::engine::vector::tensor::vector_tensor::{impl#21}::{constant#0}>`
+    = note: candidate #2 is defined in an impl for the type `furiosa_opt_std::prelude::VectorTensor<'l, T, S, i32, Chip, Cluster, Slice, Time, Packet, Stash, VE_ORDER, furiosa_opt_std::prelude::stage::Standalone, furiosa_opt_std::::engine::vector::tensor::vector_tensor::{impl#20}::{constant#0}>`
+
+warning: unused variable: `k_weight_scale`
+   --> src/device/sliding/qkv69382.rs:297:5
+    |
+297 |     k_weight_scale: &HbmTensor<bf16, Chip, m![Ps]>,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_k_weight_scale`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0034, E0425, E0432.
+For more information about an error, try `rustc --explain E0034`.
+error: could not compile `furiosa-opt-gemma4` (lib) due to 6 previous errors; 2 warnings emitted

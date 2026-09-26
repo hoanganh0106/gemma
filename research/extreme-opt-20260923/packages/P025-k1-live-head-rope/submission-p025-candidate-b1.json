@@ -1,0 +1,11 @@
+{
+  "package": "P025-k1-live-head-rope",
+  "label": "p025-candidate-b1",
+  "binary_sha256": "998b66b2b4c7b5937f4fdd1a411fbd34ab6b8775fc48a57cbe59120a35a7d54b",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 79397 (p025-candidate-b1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 79397
+}

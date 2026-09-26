@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P153-P126-lineage-control/arena-94266.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    79888,
+    39736,
+    217727
+  ],
+  "samples": [
+    [
+      83952,
+      79888,
+      79737
+    ],
+    [
+      41330,
+      39435,
+      39736
+    ],
+    [
+      218847,
+      217727,
+      215823
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.159085790479189
+}

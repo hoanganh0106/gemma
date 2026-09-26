@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P030-k1-contiguous-projection/arena-79451.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    92769,
+    39964,
+    216955
+  ],
+  "samples": [
+    [
+      94095,
+      90916,
+      92769
+    ],
+    [
+      40654,
+      39500,
+      39964
+    ],
+    [
+      219615,
+      216597,
+      216955
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 7.756878663978906
+}

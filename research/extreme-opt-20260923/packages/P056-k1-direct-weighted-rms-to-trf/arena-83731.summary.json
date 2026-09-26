@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P051-k1-direct-rope-broadcast-on-p047/arena-83731.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    80001,
+    38134,
+    215756
+  ],
+  "samples": [
+    [
+      83187,
+      80001,
+      78445
+    ],
+    [
+      38134,
+      37900,
+      38135
+    ],
+    [
+      218635,
+      215388,
+      215756
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.29297980510313
+}

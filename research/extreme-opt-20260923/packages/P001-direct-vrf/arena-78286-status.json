@@ -1,0 +1,13 @@
+{
+  "id": 78286,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "extreme-P001-direct-vrf-all3",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-23T07:30:11Z",
+  "started_at": "2026-09-23T07:32:59Z",
+  "finished_at": "2026-09-23T07:33:05Z",
+  "duration_sec": 6.686572725,
+  "exit_code": 0,
+  "device_id": null
+}

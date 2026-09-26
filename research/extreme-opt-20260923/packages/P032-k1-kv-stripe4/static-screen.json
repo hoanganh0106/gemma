@@ -1,0 +1,16 @@
+{
+  "package": "P032-k1-kv-stripe4",
+  "parent": "P005-K1-081-K2K3-P005-final",
+  "changed": {
+    "src/device/sliding/qkv69382.rs": {
+      "parent": "de2d84a4d582861bc08b2758e3a380e5e397ada9db9e21998da32f6a7103f2bd",
+      "candidate": "2eae6efa8760ab27d526d633aa8eaf7801a15c7ef6d72c8fb7e6084367581865"
+    }
+  },
+  "makespan": 42548,
+  "instruction_count": 189,
+  "schedule_sha256": "88333427045cec739895d93901a8399f13fd0acd7727d093594a20b8df1dd803",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "correctness": "NOT_YET_RUN",
+  "arena": "NOT_YET_RUN"
+}

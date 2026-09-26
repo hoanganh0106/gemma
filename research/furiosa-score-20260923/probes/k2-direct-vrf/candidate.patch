@@ -1,0 +1,32 @@
+diff --git a/src/device/sliding/output31.rs b/research/furiosa-score-20260923/probes/k2-direct-vrf/src/device/sliding/output31.rs
+index 20756fc..28034ea 100644
+--- a/src/device/sliding/output31.rs
++++ b/research/furiosa-score-20260923/probes/k2-direct-vrf/src/device/sliding/output31.rs
+@@ -224,7 +224,7 @@ pub(crate) fn project_normalize_add(
+     // Ring of sixteen: the mean square in every slice, epsilon, and the RECIPROCAL of the root --
+     // `t` is stashed before the root and the FpDiv stage divides by it: sqrt(t) / t = 1 / sqrt(t).
+     // Eight values per slice, so the divider runs 8 times instead of once per channel.
+-    let inv_rms: DmTensor<f32, Chip, Vc, m![1 # 32, Vr], m![1 # 8]> = device
++    let inv_rms: VrfTensor<f32, Chip, Vc, m![1 # 32, Vr], m![1 # 8]> = device
+         .main
+         .begin(partial.view())
+         .fetch::<m![1], m![1 # 8]>()
+@@ -239,15 +239,9 @@ pub(crate) fn project_normalize_add(
+         .vector_fp_div(Stash)
+         .vector_widen_pad::<m![1 # 8]>()
+         .vector_final()
+-        .commit_trim::<m![1 # 8]>()
+-        .commit();
+-    let inv_rms: DmTensor<f32, Chip, Vc, Tail, m![1 # 8]> = unsafe { inv_rms.reshape() };
+-    let inv_rms_vrf: VrfTensor<f32, Chip, Vc, Tail, m![1 # 8]> = device
+-        .sub
+-        .begin(inv_rms.view())
+-        .fetch::<m![1], m![1 # 8]>()
+-        .collect::<m![1], m![1 # 8]>()
+-        .to_vrf();
++        .to_vrf(&mut device.sub);
++    // Same physical slice grouping as the former DM reshape followed by Sub fetch.
++    let inv_rms_vrf: VrfTensor<f32, Chip, Vc, Tail, m![1 # 8]> = unsafe { inv_rms.reshape() };
+ 
+     let out: TailDm<bf16> = device
+         .main

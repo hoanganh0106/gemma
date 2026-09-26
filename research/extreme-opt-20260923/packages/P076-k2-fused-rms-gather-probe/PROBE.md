@@ -1,0 +1,11 @@
+﻿# P076 K2 fused RMS gather: legality probe
+
+Parent: P041-k2-direct-tail-dma, `src/device/sliding/output31.rs` only changed. The parent Arena 83329 passed 15/15 and measured K2 median 38,140 cycles (samples 38,140 / 37,856 / 38,394). Parent whole-K2 static schedule maximum lifetime end: 21,290 cycles. P061's earlier pure reordering produced a byte-identical binary to P041, so it is not a new baseline.
+
+Hypothesis: after the 16 partial sums have been gathered, run epsilon + sqrt + reciprocal in that Main vector pass and send the scalar directly to Sub VRF. This would remove the `mean` DM commit and the following Main fetch/materialization. The measured benefit is unknown; the optimistic upper bound is the cost of that separate scalar pass and its intervening handoff, not the full 38,140-cycle kernel.
+
+Dataflow: projection `z` -> direct tail redistribution -> sum of squares (scaled by weight scale) -> ring gather -> inverse RMS -> final scaled-weight and residual pass. The mathematical dependency from all 16 partials to inverse RMS is real. The intermediate mean DM allocation is an implementation dependency. The proposal preserves the BF16 projection boundary, channel scale, post-attention RMS weight, residual, and output signature.
+
+Gate 1 result: blocked by furiosa-opt-std 0.8.1 vector stage typing. The SDK rejects `vector_fp_binary` immediately after `vector_intra_slice_reduce` (`IntraSliceReduce` cannot transition to `Fp`). Inserting `vector_widen_pad` does not help; `Fp` remains unavailable from that stage. Thus no schedule, correctness, or hardware result exists for P076. This failure proves only this particular fused-pass expression illegal; it does not establish a hardware lower bound for the family.
+
+Cost classification: avoided mean DM commit/fetch is potential removable debt; added scalar arithmetic inside the gather is intrinsic to the operation but not additional work; any layout conversion needed for a legal implementation is unknown. The smallest next probe is a legal scalar path that consumes the gather result without an extra DM round trip, or a two-pass path with a direct VRF handoff. Compare exact whole-K2 schedules first, then full fixture correctness and paired Arena controls before promotion.

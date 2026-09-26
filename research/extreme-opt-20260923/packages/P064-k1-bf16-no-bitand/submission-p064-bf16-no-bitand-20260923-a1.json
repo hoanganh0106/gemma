@@ -1,0 +1,12 @@
+{
+  "package": "P064-k1-bf16-no-bitand",
+  "label": "p064-bf16-no-bitand-20260923-a1",
+  "diagnostic": false,
+  "binary_sha256": "053202a01c5865658893f6d4cd11a5fcfedfa131918b28ef94dbb44955302843",
+  "fixture_sha256": "338c0a8c06458a528b29d58f0f65a5ea13af79a14a9929a06c571b8adb002359",
+  "state": "SUBMITTED",
+  "stdout": "submitted job 84598 (p064-bf16-no-bitand-20260923-a1)\n",
+  "stderr": "",
+  "returncode": 0,
+  "job_id": 84598
+}

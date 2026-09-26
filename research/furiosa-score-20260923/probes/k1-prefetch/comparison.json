@@ -1,0 +1,9 @@
+{
+  "instruction_graph_equal_ignoring_source_description": false,
+  "instruction_timing_context_type_utilization_equal": true,
+  "tensor_reference_fields_differing": 7,
+  "baseline_makespan": 42539,
+  "probe_makespan": 42539,
+  "relative_change": 0,
+  "hardware_test_performed": false
+}

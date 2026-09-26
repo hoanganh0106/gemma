@@ -1,0 +1,30 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/P054-k1-cancel-input-scale-on-p053/arena-83971.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    87328,
+    37746,
+    216113
+  ],
+  "samples": [
+    [
+      91135,
+      86852,
+      87328
+    ],
+    [
+      37108,
+      38243,
+      37746
+    ],
+    [
+      219683,
+      215794,
+      216113
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 8.077290709644325
+}

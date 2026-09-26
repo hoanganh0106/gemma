@@ -1,0 +1,13 @@
+{
+  "id": 91905,
+  "owner": "hoanganh0106",
+  "mine": true,
+  "name": "p078-k2-tail120-a1",
+  "status": "SUCCEEDED",
+  "created_at": "2026-09-25T03:12:28Z",
+  "started_at": "2026-09-25T03:13:30Z",
+  "finished_at": "2026-09-25T03:13:36Z",
+  "duration_sec": 6.562340596,
+  "exit_code": 0,
+  "device_id": null
+}

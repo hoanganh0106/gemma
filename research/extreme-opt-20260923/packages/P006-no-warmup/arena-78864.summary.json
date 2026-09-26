@@ -1,0 +1,30 @@
+{
+  "log": "research/extreme-opt-20260923/packages/P006-no-warmup/arena-78864.log",
+  "valid_full_public_harness": true,
+  "all_checks_pass": true,
+  "diagnostic": false,
+  "pass_count": 15,
+  "medians": [
+    86867,
+    39653,
+    215879
+  ],
+  "samples": [
+    [
+      91259,
+      86867,
+      86468
+    ],
+    [
+      40254,
+      39478,
+      39653
+    ],
+    [
+      220019,
+      215639,
+      215879
+    ]
+  ],
+  "illustrative_score_snapshot_baseline": 7.962578693378239
+}

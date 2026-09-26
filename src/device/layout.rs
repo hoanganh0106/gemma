@@ -27,10 +27,10 @@ pub(crate) type QkvColumns = m![Qs / 32 % 64, H / 960];
 /// already holds its quarter of H, so this only replicates -- the DMA engine will not lower a
 /// replication whose slice mapping still has a live axis beside it, which the Switch ring will.
 pub(crate) fn broadcast_qkv_hidden<Cluster: M>(
-    ctx: &mut Context,
+    device: &mut Device,
     x: &DmTensor<bf16, Chip, Cluster, m![1 # 64, H / 960], m![H % 960]>,
 ) -> DmTensor<bf16, Chip, Cluster, QkvColumns, m![H % 960]> {
-    ctx.main
+    device.main
         .begin(x.view())
         .fetch::<m![1], m![H % 960]>()
         .switch::<QkvColumns, m![1]>(SwitchConfig::CustomBroadcast { ring_size: 256 })
@@ -47,10 +47,10 @@ pub(crate) type QueryRowsReduced = m![Qs / 32 % 64, 1 # 4];
 pub(crate) type KeyValueRowsReduced = m![Ps / 16 % 64, 1 # 4];
 
 pub(crate) fn broadcast_hidden(
-    ctx: &mut Context,
+    device: &mut Device,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![H]>,
 ) -> DmTensor<bf16, Chip, Cluster, Replicated, m![H]> {
-    let x: DmTensor<bf16, Chip, Cluster, m![Dummy256], m![H]> = ctx
+    let x: DmTensor<bf16, Chip, Cluster, m![Dummy256], m![H]> = device
         .main
         .begin(x.view())
         .fetch::<m![1], m![H]>()
@@ -71,10 +71,10 @@ pub(crate) type SlidingOutputColumns = m![H / 120 % 16, Qs / 256];
 pub(crate) type SlidingOutputRows = m![H / 120 % 16, 1 # 16];
 
 pub(crate) fn broadcast_full_heads(
-    ctx: &mut Context,
+    device: &mut Device,
     x: &DmTensor<bf16, Chip, Cluster, Slice, m![Qf]>,
 ) -> DmTensor<bf16, Chip, Cluster, Replicated, m![Qf]> {
-    let x: DmTensor<bf16, Chip, Cluster, m![Dummy256], m![Qf]> = ctx
+    let x: DmTensor<bf16, Chip, Cluster, m![Dummy256], m![Qf]> = device
         .main
         .begin(x.view())
         .fetch::<m![1], m![Qf]>()

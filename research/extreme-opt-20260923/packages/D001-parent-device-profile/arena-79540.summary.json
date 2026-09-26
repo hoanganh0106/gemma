@@ -1,0 +1,29 @@
+{
+  "log": "/mnt/d/Project/furiosa-opt-gemma4-12B-main/research/extreme-opt-20260923/packages/D001-parent-device-profile/arena-79540.log",
+  "valid_full_public_harness": false,
+  "all_checks_pass": true,
+  "diagnostic": true,
+  "pass_count": 15,
+  "medians": [
+    81490,
+    40413,
+    217466
+  ],
+  "samples": [
+    [
+      87901,
+      81465,
+      81490
+    ],
+    [
+      42206,
+      40413,
+      40111
+    ],
+    [
+      219598,
+      217466,
+      216200
+    ]
+  ]
+}
